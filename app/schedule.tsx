@@ -1,0 +1,300 @@
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { getAllAppointments } from "../src/services/api";
+
+export default function Schedule() {
+  const router = useRouter();
+  const params = useLocalSearchParams();
+
+  const services = params.services ? JSON.parse(params.services as string) : [];
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedBarber, setSelectedBarber] = useState<number>(1);
+  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
+  const [appointments, setAppointments] = useState<any[]>([]);
+
+  const times = [
+    "14:30",
+    "15:00",
+    "15:30",
+    "16:00",
+    "16:30",
+    "17:00",
+    "17:30",
+    "18:30",
+  ];
+
+  const barbers = [
+    { id: 1, name: "Barão" },
+    { id: 2, name: "..." },
+    { id: 3, name: "..." },
+  ];
+
+  // 🔥 GERAR DATAS
+  const generateDates = () => {
+    const days = [];
+    const today = new Date();
+
+    for (let i = 0; i < 7; i++) {
+      const future = new Date();
+      future.setDate(today.getDate() + i);
+
+      const day = future.toLocaleDateString("pt-BR", { weekday: "short" });
+      const date = future.getDate();
+
+      days.push({
+        fullDate: formatDate(future),
+        day: day.toUpperCase().replace(".", ""),
+        date,
+      });
+    }
+
+    return days;
+  };
+
+  const dates = generateDates();
+
+  // 🔥 IR PRA CONFIRMAÇÃO
+  const handleGoToConfirm = () => {
+    if (!selectedTime) {
+      Alert.alert("Erro", "Selecione um horário");
+      return;
+    }
+
+    router.push({
+      pathname: "/confirm",
+      params: {
+        services: JSON.stringify(services),
+        date: selectedDate,
+        time: selectedTime,
+        barberId: selectedBarber,
+      },
+    });
+  };
+
+  // 🔥 FILTRO DE HORÁRIOS (GLOBAL)
+  const availableTimes = times.filter((t) => {
+    return !appointments.some((a) => {
+      const date = a.date.includes("T") ? a.date.split("T")[0] : a.date;
+
+      return (
+        date === selectedDate &&
+        a.time === t &&
+        Number(a.barberId) === Number(selectedBarber)
+      );
+    });
+  });
+
+  // 🔥 CARREGAR TODOS AGENDAMENTOS
+  useEffect(() => {
+    const loadAppointments = async () => {
+      try {
+        const data = await getAllAppointments();
+        setAppointments(data || []);
+      } catch (err) {
+        console.log("Erro ao buscar agendamentos", err);
+      }
+    };
+
+    loadAppointments();
+  }, []);
+
+  return (
+    <View style={styles.container}>
+      <Text style={styles.title}>Agendamento</Text>
+
+      <Text style={styles.section}>Escolha a data</Text>
+
+      <View style={styles.calendar}>
+        {dates.map((item) => {
+          const selected = selectedDate === item.fullDate;
+
+          return (
+            <TouchableOpacity
+              key={item.fullDate}
+              style={[styles.dateItem, selected && styles.dateActive]}
+              onPress={() => setSelectedDate(item.fullDate)}
+            >
+              <Text style={[styles.dateDay, selected && { color: "#000" }]}>
+                {item.day}
+              </Text>
+
+              <Text style={[styles.dateNumber, selected && { color: "#000" }]}>
+                {item.date}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text style={styles.section}>Escolha seu barbeiro</Text>
+
+      <View style={styles.barbers}>
+        {barbers.map((barber) => (
+          <View key={barber.id} style={styles.barberWrapper}>
+            <TouchableOpacity
+              onPress={() => setSelectedBarber(barber.id)}
+              style={
+                selectedBarber === barber.id
+                  ? styles.barberActive
+                  : styles.barber
+              }
+            />
+            <Text style={styles.barberName}>{barber.name}</Text>
+          </View>
+        ))}
+      </View>
+
+      <View style={styles.times}>
+        {availableTimes.map((t) => (
+          <TouchableOpacity
+            key={t}
+            style={[styles.time, selectedTime === t && styles.timeActive]}
+            onPress={() => setSelectedTime(t)}
+          >
+            <Text
+              style={[styles.timeText, selectedTime === t && { color: "#000" }]}
+            >
+              {t}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <TouchableOpacity
+        style={[styles.button, !selectedTime && { opacity: 0.5 }]}
+        disabled={!selectedTime}
+        onPress={handleGoToConfirm}
+      >
+        <Text style={styles.buttonText}>Continuar</Text>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: "#0D0D0D",
+    padding: 20,
+  },
+
+  title: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+
+  section: {
+    color: "#fff",
+    marginBottom: 10,
+    marginTop: 10,
+  },
+
+  // 🔥 CALENDÁRIO
+  calendar: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+
+  dateItem: {
+    backgroundColor: "#1A1A1A",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  dateActive: {
+    backgroundColor: "#CBA135",
+  },
+
+  dateDay: {
+    color: "#aaa",
+    fontSize: 10,
+  },
+
+  dateNumber: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+
+  barbers: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+
+  barberWrapper: {
+    alignItems: "center",
+    marginHorizontal: 10,
+  },
+
+  barber: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#1A1A1A",
+  },
+
+  barberActive: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#CBA135",
+  },
+
+  barberName: {
+    color: "#fff",
+    fontSize: 11,
+    marginTop: 6,
+    opacity: 0.8,
+  },
+
+  times: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
+
+  time: {
+    width: "30%",
+    padding: 12,
+    borderRadius: 8,
+    backgroundColor: "#1A1A1A",
+    marginBottom: 10,
+    alignItems: "center",
+  },
+
+  timeActive: {
+    backgroundColor: "#CBA135",
+  },
+
+  timeText: {
+    color: "#fff",
+  },
+
+  button: {
+    backgroundColor: "#CBA135",
+    padding: 15,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+  },
+
+  buttonText: {
+    color: "#000",
+    fontWeight: "bold",
+  },
+});
