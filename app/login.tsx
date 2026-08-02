@@ -54,13 +54,10 @@ export default function Login() {
 
       console.log("🔥 LOGIN RESPONSE:", res);
 
-      // ✅ SALVA TOKEN
       await AsyncStorage.setItem("token", res.token);
 
-      // 🔥 SALVA USER (ESSA LINHA FALTAVA)
       await AsyncStorage.setItem("user", JSON.stringify(res.user));
 
-      // ✅ AGORA SIM (depois de salvar)
       const checkUser = await AsyncStorage.getItem("user");
       console.log("🔥 USER SALVO AGORA:", checkUser);
 
@@ -107,8 +104,8 @@ export default function Login() {
             <Image
               source={
                 showPassword
-                  ? require("../assets/images/eye-off.png") // coloque aqui
-                  : require("../assets/images/eye.png") // coloque aqui
+                  ? require("../assets/images/eye-off.png")
+                  : require("../assets/images/eye.png")
               }
               style={styles.icon}
             />
@@ -162,7 +159,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#1C1C1C",
     borderRadius: 14,
     color: "#fff",
-    marginBottom: 5,
+    marginBottom: 10,
     padding: 16,
   },
 
@@ -185,6 +182,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: "center",
     marginBottom: 20,
+    marginTop: 10,
   },
 
   buttonText: {

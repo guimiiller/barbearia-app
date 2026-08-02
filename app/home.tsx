@@ -49,14 +49,12 @@ export default function Home() {
         const parsedUser = JSON.parse(userStorage);
         setUser(parsedUser);
 
-        // 🔥 BUSCA EM PARALELO (melhor performance)
         const [servicesData, appointmentsData] = await Promise.all([
           getServices(),
           getAppointments(parsedUser.id || parsedUser._id),
         ]);
         console.log("🔥 SERVICES API:", servicesData);
 
-        // 🔥 GARANTIA DE ARRAY (resolve 99% dos bugs)
         const safeServices = Array.isArray(servicesData)
           ? servicesData
           : servicesData?.services || [];
@@ -106,7 +104,6 @@ export default function Home() {
     try {
       await cancelAppointment(id);
 
-      // 🔥 atualiza lista sem precisar recarregar tudo
       setAppointments((prev) => prev.filter((a: any) => a._id !== id));
     } catch (err) {
       console.log("Erro ao cancelar:", err);
@@ -257,6 +254,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0D0D0D",
     padding: 20,
     paddingBottom: 120,
+    marginTop: 40,
   },
 
   title: {
@@ -399,7 +397,7 @@ const styles = StyleSheet.create({
   iconPlaceholder: {
     width: 24,
     height: 24,
-    backgroundColor: "#555", // espaço do ícone
+    backgroundColor: "#555",
     borderRadius: 6,
     marginBottom: 4,
   },
@@ -423,7 +421,7 @@ const styles = StyleSheet.create({
   iconActive: {
     width: 22,
     height: 22,
-    tintColor: "#D4AF37", // dourado ativo
+    tintColor: "#D4AF37",
   },
 
   actions: {

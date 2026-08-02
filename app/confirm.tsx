@@ -1,17 +1,17 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { createAppointment } from "../src/services/api";
+import { createAppointment, updateAppointment } from "../src/services/api";
 
 export default function Confirm() {
   const router = useRouter();
   const params = useLocalSearchParams();
 
-  const services = params.services ? JSON.parse(params.services as string) : [];
-
+  const services = JSON.parse(params.services as string);
   const date = params.date as string;
   const time = params.time as string;
   const barberId = params.barberId as string;
+  const rescheduleId = params.rescheduleId as string;
 
   const getBarberName = (id: any) => {
     if (Number(id) === 1) return "Barão";
@@ -23,30 +23,35 @@ export default function Confirm() {
   const handleConfirm = async () => {
     try {
       const userStorage = await AsyncStorage.getItem("user");
-      const user = userStorage ? JSON.parse(userStorage) : null;
+      const user = JSON.parse(userStorage || "{}");
 
-      if (!user) {
-        Alert.alert("Erro", "Usuário não encontrado");
-        return;
+      if (rescheduleId) {
+        await updateAppointment(rescheduleId, {
+          userId: user.id || user._id,
+          services,
+          date,
+          time,
+          barberId,
+        });
+
+        Alert.alert("Sucesso", "Agendamento reagendado!");
+      } else {
+        await createAppointment({
+          userId: user.id || user._id,
+          services,
+          date,
+          time,
+          barberId,
+        });
+
+        Alert.alert("Sucesso", "Agendamento criado!");
       }
 
-      const payload = {
-        userId: user.id || user._id,
-        services,
-        barberId: Number(barberId),
-        date,
-        time,
-      };
-
-      await createAppointment(payload);
-
-      Alert.alert("Sucesso", "Agendamento confirmado!");
       router.replace("/");
-    } catch (error: any) {
-      Alert.alert("Erro", error?.response?.data?.error || "Erro ao agendar");
+    } catch (err: any) {
+      Alert.alert("Erro", err?.response?.data?.error || "Erro ao salvar");
     }
   };
-
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Confirmação</Text>

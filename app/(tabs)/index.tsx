@@ -18,7 +18,7 @@ export default function Index() {
       router.replace("/home");
     } else {
       console.log("NÃO LOGADO ❌");
-      router.replace("/login");
+      router.replace("/landing");
     }
   };
 

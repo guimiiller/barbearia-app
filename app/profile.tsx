@@ -113,6 +113,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#0B0B0B",
     padding: 20,
     justifyContent: "space-between",
+    marginTop: 40,
   },
 
   header: {

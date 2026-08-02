@@ -6,6 +6,7 @@ import { getAllAppointments } from "../src/services/api";
 export default function Schedule() {
   const router = useRouter();
   const params = useLocalSearchParams();
+  const rescheduleId = params.rescheduleId as string | undefined;
 
   const services = params.services ? JSON.parse(params.services as string) : [];
 
@@ -38,7 +39,6 @@ export default function Schedule() {
     { id: 3, name: "..." },
   ];
 
-  // 🔥 GERAR DATAS
   const generateDates = () => {
     const days = [];
     const today = new Date();
@@ -62,7 +62,6 @@ export default function Schedule() {
 
   const dates = generateDates();
 
-  // 🔥 IR PRA CONFIRMAÇÃO
   const handleGoToConfirm = () => {
     if (!selectedTime) {
       Alert.alert("Erro", "Selecione um horário");
@@ -76,11 +75,11 @@ export default function Schedule() {
         date: selectedDate,
         time: selectedTime,
         barberId: selectedBarber,
+        rescheduleId: rescheduleId || "",
       },
     });
   };
 
-  // 🔥 FILTRO DE HORÁRIOS (GLOBAL)
   const availableTimes = times.filter((t) => {
     return !appointments.some((a) => {
       const date = a.date.includes("T") ? a.date.split("T")[0] : a.date;
@@ -93,7 +92,6 @@ export default function Schedule() {
     });
   });
 
-  // 🔥 CARREGAR TODOS AGENDAMENTOS
   useEffect(() => {
     const loadAppointments = async () => {
       try {
@@ -185,6 +183,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0D0D0D",
     padding: 20,
+    marginTop: 40,
   },
 
   title: {
@@ -200,7 +199,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  // 🔥 CALENDÁRIO
   calendar: {
     flexDirection: "row",
     justifyContent: "space-between",

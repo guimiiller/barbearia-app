@@ -23,6 +23,7 @@ export default function Register() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
   const [errorName, setErrorName] = useState("");
@@ -184,7 +185,16 @@ export default function Register() {
         onPress={() => setAcceptTerms(!acceptTerms)}
       >
         <View style={[styles.checkbox, acceptTerms && styles.checkboxActive]} />
-        <Text style={styles.termsText}>Aceito os termos</Text>
+
+        <Text style={styles.termsText}>
+          Aceito os{" "}
+          <Text
+            style={styles.linkTerms}
+            onPress={() => setShowTermsModal(true)}
+          >
+            Termos de Uso
+          </Text>
+        </Text>
       </TouchableOpacity>
 
       {errorTerms ? <Text style={styles.error}>{errorTerms}</Text> : null}
@@ -207,6 +217,31 @@ export default function Register() {
               }}
             >
               <Text style={styles.modalButtonText}>Ir para login</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showTermsModal} transparent animationType="slide">
+        <View style={styles.modalContainer}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>📄 Termos de Uso</Text>
+
+            <Text style={{ color: "#fff", margin: 20 }}>
+              Ao utilizar este aplicativo, você concorda com as seguintes
+              condições:
+              {"\n\n"}• Os agendamentos são de responsabilidade do usuário.
+              {"\n"}• Cancelamentos devem ser feitos com antecedência.
+              {"\n"}• O não comparecimento pode gerar bloqueio futuro.
+              {"\n"}• Seus dados são usados apenas para funcionamento do app.
+              {"\n\n"}Ao continuar, você aceita estes termos.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.modalButton}
+              onPress={() => setShowTermsModal(false)}
+            >
+              <Text style={styles.modalButtonText}>Fechar</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -412,5 +447,23 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     tintColor: "#aaa",
+  },
+
+  linkTerms: {
+    color: "#D4AF37",
+    fontWeight: "bold",
+  },
+
+  termsBox: {
+    backgroundColor: "#fff",
+    padding: 20,
+    borderRadius: 10,
+    width: "85%",
+  },
+
+  termsContent: {
+    marginTop: 10,
+    color: "#fff",
+    fontSize: 14,
   },
 });
