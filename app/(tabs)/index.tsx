@@ -12,10 +12,18 @@ export default function Index() {
 
   const checkLogin = async () => {
     const token = await AsyncStorage.getItem("token");
+    const user = await AsyncStorage.getItem("user");
 
-    if (token) {
-      console.log("AUTO LOGIN 🔥");
-      router.replace("/home");
+    if (token && user) {
+      const parsedUser = JSON.parse(user);
+
+      console.log("AUTO LOGIN 🔥", parsedUser);
+
+      if (parsedUser.role === "admin") {
+        router.replace("/admin");
+      } else {
+        router.replace("/home");
+      }
     } else {
       console.log("NÃO LOGADO ❌");
       router.replace("/landing");

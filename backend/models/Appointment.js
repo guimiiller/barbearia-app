@@ -7,14 +7,23 @@ const appointmentSchema = new mongoose.Schema(
       ref: "User",
     },
     barberId: Number,
+
     services: [
       {
         name: String,
         price: Number,
       },
     ],
+
     date: String,
     time: String,
+
+    // 🔥 ADICIONADO (ESSA É A CHAVE DE TUDO)
+    status: {
+      type: String,
+      enum: ["agendado", "cancelado", "concluido"],
+      default: "agendado",
+    },
   },
   { timestamps: true },
 );

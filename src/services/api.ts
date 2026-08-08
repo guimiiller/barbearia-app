@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "http://192.168.0.6:3000",
+  baseURL: "http://192.168.0.7:3000",
 });
 
 export type AppointmentData = {
@@ -58,5 +58,15 @@ export const cancelAppointment = async (id: string) => {
 
 export const updateUser = async (id: string, data: any) => {
   const response = await api.put(`/users/${id}`, data);
+  return response.data;
+};
+
+export const concludeAppointment = async (id: string) => {
+  const response = await api.delete(`/appointments/concluir/${id}`);
+  return response.data;
+};
+
+export const createService = async (data: { name: string; price: number }) => {
+  const response = await api.post("/services", data);
   return response.data;
 };

@@ -55,13 +55,19 @@ export default function Login() {
       console.log("🔥 LOGIN RESPONSE:", res);
 
       await AsyncStorage.setItem("token", res.token);
-
       await AsyncStorage.setItem("user", JSON.stringify(res.user));
 
       const checkUser = await AsyncStorage.getItem("user");
       console.log("🔥 USER SALVO AGORA:", checkUser);
 
-      router.replace("/home");
+      // 🔥 AQUI É O QUE FALTAVA
+      if (res.user.role === "admin") {
+        console.log("🔥 REDIRECIONANDO PARA ADMIN");
+        router.replace("/admin");
+      } else {
+        console.log("🔥 REDIRECIONANDO PARA HOME");
+        router.replace("/home");
+      }
     } catch (err: any) {
       setErrorGeneral(
         err?.response?.data?.error || "E-mail ou senha incorretos",
@@ -244,6 +250,13 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 10,
     marginBottom: 12,
+
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+
+    elevation: 5,
   },
 
   inputPassword: {
