@@ -23,6 +23,7 @@ export default function ServicesAdmin() {
   const [services, setServices] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
   const [editingService, setEditingService] = useState<any>(null);
+  const [loading, setLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -35,27 +36,47 @@ export default function ServicesAdmin() {
     const data = await getServices();
     setServices(data);
   };
-  const handleSave = async () => {
-    if (!name || !price) return;
 
-    if (editingService) {
-      await updateService(editingService._id, {
-        name,
-        price: Number(price),
-      });
-    } else {
-      await createService({
-        name,
-        price: Number(price),
-      });
+  const handleSave = async () => {
+    const priceNumber = Number(price);
+
+    if (!name.trim()) {
+      alert("Nome obrigatório");
+      return;
     }
 
-    setName("");
-    setPrice("");
-    setEditingService(null);
-    setModalVisible(false);
+    if (!price || isNaN(priceNumber) || priceNumber <= 0) {
+      alert("Preço inválido");
+      return;
+    }
 
-    loadServices();
+    try {
+      setLoading(true);
+
+      if (editingService) {
+        await updateService(editingService._id, {
+          name: name.trim(),
+          price: priceNumber,
+        });
+      } else {
+        await createService({
+          name: name.trim(),
+          price: priceNumber,
+        });
+      }
+
+      setName("");
+      setPrice("");
+      setEditingService(null);
+      setModalVisible(false);
+
+      loadServices();
+    } catch (err) {
+      console.log(err);
+      alert("Erro ao salvar serviço");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -134,7 +155,9 @@ export default function ServicesAdmin() {
             />
 
             <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-              <Text style={styles.saveText}>Salvar</Text>
+              <Text style={styles.saveText}>
+                {loading ? "Salvando..." : "Salvar"}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => setModalVisible(false)}>
@@ -149,7 +172,7 @@ export default function ServicesAdmin() {
         <TouchableOpacity onPress={() => router.push("/")}>
           <Image
             source={require("../assets/images/home.png")}
-            style={styles.iconActive}
+            style={styles.icon}
           />
         </TouchableOpacity>
 
@@ -163,7 +186,7 @@ export default function ServicesAdmin() {
         <TouchableOpacity onPress={() => router.push("/services-admin")}>
           <Image
             source={require("../assets/images/services.png")}
-            style={styles.icon}
+            style={styles.iconActive}
           />
         </TouchableOpacity>
       </View>

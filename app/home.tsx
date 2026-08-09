@@ -25,6 +25,20 @@ export default function Home() {
   const [selectedServices, setSelectedServices] = useState<string[]>([]);
 
   useEffect(() => {
+    const checkMessage = async () => {
+      const msg = await AsyncStorage.getItem("cancelMessage");
+
+      if (msg) {
+        alert(msg);
+
+        await AsyncStorage.removeItem("cancelMessage");
+      }
+    };
+
+    checkMessage();
+  }, []);
+
+  useEffect(() => {
     const load = async () => {
       await init();
     };
@@ -256,6 +270,13 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "bold",
     marginBottom: 20,
+  },
+
+  cancelMessage: {
+    color: "red",
+    textAlign: "center",
+    marginVertical: 10,
+    fontWeight: "bold",
   },
 
   section: {

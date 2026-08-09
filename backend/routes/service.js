@@ -11,7 +11,25 @@ router.get("/", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const service = await Service.create(req.body);
+    const { name, price } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Nome é obrigatório" });
+    }
+
+    if (price === undefined || isNaN(price)) {
+      return res.status(400).json({ error: "Preço inválido" });
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({ error: "Preço deve ser maior que zero" });
+    }
+
+    const service = await Service.create({
+      name: name.trim(),
+      price,
+    });
+
     res.status(201).json(service);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -20,9 +38,28 @@ router.post("/", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   try {
-    const updated = await Service.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-    });
+    const { name, price } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: "Nome é obrigatório" });
+    }
+
+    if (price === undefined || isNaN(price)) {
+      return res.status(400).json({ error: "Preço inválido" });
+    }
+
+    if (price <= 0) {
+      return res.status(400).json({ error: "Preço deve ser maior que zero" });
+    }
+
+    const updated = await Service.findByIdAndUpdate(
+      req.params.id,
+      {
+        name: name.trim(),
+        price,
+      },
+      { new: true },
+    );
 
     res.json(updated);
   } catch (err) {

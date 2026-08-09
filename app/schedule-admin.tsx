@@ -152,14 +152,14 @@ export default function ScheduleAdmin() {
         <TouchableOpacity onPress={() => router.push("/")}>
           <Image
             source={require("../assets/images/home.png")}
-            style={styles.iconActive}
+            style={styles.icon}
           />
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => router.push("/schedule-admin")}>
           <Image
             source={require("../assets/images/calendar.png")}
-            style={styles.icon}
+            style={styles.iconActive}
           />
         </TouchableOpacity>
 

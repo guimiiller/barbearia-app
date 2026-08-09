@@ -1,6 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
@@ -11,15 +11,16 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { removeSlot } from "../src/services/api";
 
 import {
   cancelAppointment,
   concludeAppointment,
   getAllAppointments,
+  removeSlot,
 } from "../src/services/api";
 
 export default function Admin() {
+  const pathname = usePathname();
   const router = useRouter();
 
   const [appointments, setAppointments] = useState<any[]>([]);
@@ -33,6 +34,8 @@ export default function Admin() {
 
   const loadAppointments = async () => {
     try {
+      setLoading(true);
+
       const data = await getAllAppointments();
 
       const filtered = data.filter((a: any) => a.status !== "cancelado");
@@ -51,9 +54,15 @@ export default function Admin() {
 
       await removeSlot(item.date, item.time);
 
+      await AsyncStorage.setItem(
+        "cancelMessage",
+        "❌ Seu agendamento foi cancelado pelo barbeiro.",
+      );
+
       loadAppointments();
     } catch (error) {
       console.log(error);
+      alert("Erro ao cancelar agendamento");
     }
   };
 
@@ -299,16 +308,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     width: "70%",
   },
-
   icon: {
-    width: 22,
-    height: 22,
+    width: 25,
+    height: 25,
     tintColor: "#B0B0B0",
   },
-
   iconActive: {
-    width: 22,
-    height: 22,
+    width: 25,
+    height: 25,
     tintColor: "#D4AF37",
   },
 });
