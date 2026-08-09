@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   FlatList,
@@ -10,8 +11,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { removeSlot } from "../src/services/api";
 
-// 🔥 API
 import {
   cancelAppointment,
   concludeAppointment,
@@ -24,9 +25,11 @@ export default function Admin() {
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    loadAppointments();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadAppointments();
+    }, []),
+  );
 
   const loadAppointments = async () => {
     try {
@@ -42,23 +45,23 @@ export default function Admin() {
     }
   };
 
-  // 🔥 AÇÕES
-  const handleCancel = async (id: string) => {
+  const handleCancel = async (item: any) => {
     try {
-      await cancelAppointment(id);
+      await cancelAppointment(item._id);
+
+      await removeSlot(item.date, item.time);
+
       loadAppointments();
     } catch (error) {
-      console.log("Erro ao cancelar", error);
+      console.log(error);
     }
   };
 
-  const handleConclude = async (id: string) => {
-    console.log("🔥 BOTÃO CONCLUIR CLICADO", id);
-
+  const handleConclude = async (item: any) => {
     try {
-      const res = await concludeAppointment(id);
+      await concludeAppointment(item._id);
 
-      console.log("✅ RESPOSTA DA API:", res);
+      await removeSlot(item.date, item.time);
 
       loadAppointments();
     } catch (error) {
@@ -66,14 +69,12 @@ export default function Admin() {
     }
   };
 
-  // 🔥 LOGOUT
   const handleLogout = async () => {
     await AsyncStorage.removeItem("token");
     await AsyncStorage.removeItem("user");
     router.replace("/landing");
   };
 
-  // 📅 DATA
   const formatDate = () => {
     const today = new Date();
 
@@ -139,14 +140,14 @@ export default function Admin() {
                 <View style={styles.actions}>
                   <TouchableOpacity
                     style={styles.concludeBtn}
-                    onPress={() => handleConclude(item._id)}
+                    onPress={() => handleConclude(item)}
                   >
                     <Text style={styles.btnTextDark}>Concluir</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.cancelBtn}
-                    onPress={() => handleCancel(item._id)}
+                    onPress={() => handleCancel(item)}
                   >
                     <Text style={styles.btnText}>Cancelar</Text>
                   </TouchableOpacity>
@@ -171,7 +172,7 @@ export default function Admin() {
           />
         </TouchableOpacity>
 
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/schedule-admin")}>
           <Image
             source={require("../assets/images/calendar.png")}
             style={styles.icon}

@@ -86,16 +86,6 @@ export default function Profile() {
           />
         </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/")}
-        >
-          <Image
-            source={require("../assets/images/calendar.png")}
-            style={styles.icon}
-          />
-        </TouchableOpacity>
-
         <TouchableOpacity style={styles.tabItem}>
           <Image
             source={require("../assets/images/user.png")}
@@ -180,7 +170,8 @@ const styles = StyleSheet.create({
 
   tabBar: {
     flexDirection: "row",
-    justifyContent: "space-around",
+    justifyContent: "center",
+    gap: 70,
     paddingVertical: 15,
     borderTopWidth: 1,
     borderTopColor: "#222",
@@ -191,14 +182,14 @@ const styles = StyleSheet.create({
   },
 
   icon: {
-    width: 24,
-    height: 24,
+    width: 30,
+    height: 30,
     tintColor: "#aaa",
   },
 
   iconActive: {
-    width: 24,
-    height: 24,
+    width: 30,
+    height: 30,
     tintColor: "#D4AF37",
   },
 });

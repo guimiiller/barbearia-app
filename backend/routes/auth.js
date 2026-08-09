@@ -21,7 +21,7 @@ router.post("/register", async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: "client", // 🔥 sempre cliente
+      role: "client",
     });
 
     res.json({ message: "Usuário criado com sucesso" });
@@ -57,7 +57,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
-        role: user.role, // 🔥 ESSENCIAL
+        role: user.role,
       },
     });
   } catch (err) {

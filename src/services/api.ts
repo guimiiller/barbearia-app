@@ -70,3 +70,32 @@ export const createService = async (data: { name: string; price: number }) => {
   const response = await api.post("/services", data);
   return response.data;
 };
+
+export const getSchedule = async (date: string) => {
+  const res = await api.get(`/schedule/${date}`);
+  return res.data;
+};
+
+export const saveSchedule = async (data: any) => {
+  const res = await api.post("/schedule", data);
+  return res.data;
+};
+
+export const removeSlot = async (date: string, time: string) => {
+  const res = await api.post("/schedule/remove-slot", {
+    date,
+    time,
+  });
+
+  return res.data;
+};
+
+export const updateService = async (id: string, data: any) => {
+  const res = await api.put(`/services/${id}`, data);
+  return res.data;
+};
+
+export const deleteService = async (id: string) => {
+  const res = await api.delete(`/services/${id}`);
+  return res.data;
+};

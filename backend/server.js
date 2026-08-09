@@ -3,6 +3,7 @@ import express from "express";
 import mongoose from "mongoose";
 import appointmentRoutes from "./routes/appointment.js";
 import authRoutes from "./routes/auth.js";
+import scheduleRoutes from "./routes/schedule.js";
 import serviceRoutes from "./routes/service.js";
 import userRoutes from "./routes/users.js";
 
@@ -25,6 +26,8 @@ app.use("/auth", authRoutes);
 app.use("/services", serviceRoutes);
 app.use("/appointments", appointmentRoutes);
 app.use("/users", userRoutes);
+
+app.use("/schedule", scheduleRoutes);
 
 app.listen(3000, () => {
   console.log("🚀 Servidor rodando na porta 3000");

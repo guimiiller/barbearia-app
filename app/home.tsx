@@ -126,48 +126,52 @@ export default function Home() {
 
       <Text style={styles.section}>Agendamentos</Text>
 
-      <FlatList
-        data={appointments}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        keyExtractor={(item: any) => item._id}
-        renderItem={({ item }: any) => (
-          <View style={styles.appointmentCard}>
-            <View style={styles.headerCard}>
-              <Text style={styles.date}>{item.date}</Text>
-              <Text style={styles.time}>{item.time}</Text>
-            </View>
+      <View style={styles.appointmentsWrapper}>
+        <FlatList
+          data={appointments}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          keyExtractor={(item: any) => item._id}
+          renderItem={({ item }: any) => (
+            <View style={styles.appointmentCard}>
+              <View style={styles.headerCard}>
+                <Text style={styles.date}>{item.date}</Text>
+                <Text style={styles.time}>{item.time}</Text>
+              </View>
 
-            <View style={styles.servicesContainer}>
-              {item.services?.map((s: any, index: number) => (
-                <Text key={index} style={styles.serviceItem}>
-                  • {s.name}
+              <View style={styles.servicesContainer}>
+                {item.services?.map((s: any, index: number) => (
+                  <Text key={index} style={styles.serviceItem}>
+                    • {s.name}
+                  </Text>
+                ))}
+              </View>
+
+              <View style={styles.footerCard}>
+                <Text style={styles.barber}>
+                  {getBarberName(item.barberId)}
                 </Text>
-              ))}
-            </View>
+              </View>
 
-            <View style={styles.footerCard}>
-              <Text style={styles.barber}>{getBarberName(item.barberId)}</Text>
-            </View>
+              <View style={styles.actions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => handleCancel(item._id)}
+                >
+                  <Text style={styles.cancelText}>Cancelar</Text>
+                </TouchableOpacity>
 
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => handleCancel(item._id)}
-              >
-                <Text style={styles.cancelText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.rescheduleButton}
-                onPress={() => handleReschedule(item)}
-              >
-                <Text style={styles.rescheduleText}>Reagendar</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.rescheduleButton}
+                  onPress={() => handleReschedule(item)}
+                >
+                  <Text style={styles.rescheduleText}>Reagendar</Text>
+                </TouchableOpacity>
+              </View>
             </View>
-          </View>
-        )}
-      />
+          )}
+        />
+      </View>
 
       <Text style={styles.section}>Lista de serviços</Text>
 
@@ -221,16 +225,6 @@ export default function Home() {
           <Image
             source={require("../assets/images/home.png")}
             style={styles.iconActive}
-          />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/")}
-        >
-          <Image
-            source={require("../assets/images/calendar.png")}
-            style={styles.icon}
           />
         </TouchableOpacity>
 
@@ -299,7 +293,7 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#1C1C1C",
     width: "48%",
-    padding: 20,
+    padding: 15,
     borderRadius: 14,
     marginBottom: 10,
   },
@@ -372,13 +366,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#D4AF37",
     borderRadius: 5,
   },
+
   tabBar: {
     position: "absolute",
-    bottom: 20,
+    bottom: 30,
     alignSelf: "center",
 
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "space-around",
     alignItems: "center",
 
     backgroundColor: "#1A1A1A",
@@ -414,20 +409,20 @@ const styles = StyleSheet.create({
   },
 
   icon: {
-    width: 22,
-    height: 22,
+    width: 25,
+    height: 25,
     tintColor: "#B0B0B0",
   },
   iconActive: {
-    width: 22,
-    height: 22,
+    width: 25,
+    height: 25,
     tintColor: "#D4AF37",
   },
 
   actions: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginTop: 12,
+    marginTop: 30,
   },
 
   cancelButton: {
@@ -455,5 +450,9 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 12,
     fontWeight: "600",
+  },
+
+  appointmentsWrapper: {
+    height: 250,
   },
 });

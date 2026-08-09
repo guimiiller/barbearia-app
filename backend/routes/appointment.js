@@ -3,7 +3,6 @@ import Appointment from "../models/Appointment.js";
 
 const router = express.Router();
 
-// BUSCAR AGENDAMENTOS DO USUÁRIO
 router.get("/:userId", async (req, res) => {
   try {
     const data = await Appointment.find({
@@ -16,15 +15,32 @@ router.get("/:userId", async (req, res) => {
   }
 });
 
-// CRIAR
 router.post("/", async (req, res) => {
   try {
     const { userId, services, date, time, barberId } = req.body;
 
-    const exists = await Appointment.findOne({ date, time, barberId });
+    const userAppointments = await Appointment.countDocuments({
+      userId,
+      status: { $ne: "cancelado" },
+    });
+
+    if (userAppointments >= 1) {
+      return res.status(400).json({
+        error: "Você já possui um agendamento ativo",
+      });
+    }
+
+    const exists = await Appointment.findOne({
+      date,
+      time,
+      barberId,
+      status: { $ne: "cancelado" },
+    });
 
     if (exists) {
-      return res.status(400).json({ error: "Horário já ocupado" });
+      return res.status(400).json({
+        error: "Horário já ocupado",
+      });
     }
 
     const appointment = await Appointment.create({
@@ -38,11 +54,11 @@ router.post("/", async (req, res) => {
 
     res.json(appointment);
   } catch (err) {
+    console.log("❌ ERRO AO CRIAR:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// LISTAR TODOS
 router.get("/", async (req, res) => {
   try {
     const data = await Appointment.find().populate("userId", "name");
@@ -52,7 +68,6 @@ router.get("/", async (req, res) => {
   }
 });
 
-// DELETAR
 router.delete("/:id", async (req, res) => {
   try {
     await Appointment.findByIdAndDelete(req.params.id);
@@ -62,7 +77,6 @@ router.delete("/:id", async (req, res) => {
   }
 });
 
-// ATUALIZAR
 router.put("/:id", async (req, res) => {
   try {
     const updated = await Appointment.findByIdAndUpdate(
@@ -77,7 +91,6 @@ router.put("/:id", async (req, res) => {
   }
 });
 
-// CANCELAR
 router.patch("/:id/cancel", async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);

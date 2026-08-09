@@ -11,12 +11,18 @@ import {
   View,
 } from "react-native";
 
-import { createService, getServices } from "../src/services/api";
+import {
+  createService,
+  deleteService,
+  getServices,
+  updateService,
+} from "../src/services/api";
 
 export default function ServicesAdmin() {
   const router = useRouter();
   const [services, setServices] = useState<any[]>([]);
   const [modalVisible, setModalVisible] = useState(false);
+  const [editingService, setEditingService] = useState<any>(null);
 
   const [name, setName] = useState("");
   const [price, setPrice] = useState("");
@@ -29,20 +35,39 @@ export default function ServicesAdmin() {
     const data = await getServices();
     setServices(data);
   };
-
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!name || !price) return;
 
-    await createService({
-      name,
-      price: Number(price),
-    });
+    if (editingService) {
+      await updateService(editingService._id, {
+        name,
+        price: Number(price),
+      });
+    } else {
+      await createService({
+        name,
+        price: Number(price),
+      });
+    }
 
     setName("");
     setPrice("");
+    setEditingService(null);
     setModalVisible(false);
 
     loadServices();
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteService(id);
+    loadServices();
+  };
+
+  const handleEdit = (service: any) => {
+    setEditingService(service);
+    setName(service.name);
+    setPrice(String(service.price));
+    setModalVisible(true);
   };
 
   return (
@@ -58,10 +83,21 @@ export default function ServicesAdmin() {
           <View style={styles.card}>
             <Text style={styles.name}>{item.name}</Text>
             <Text style={styles.price}>R$ {item.price}</Text>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <TouchableOpacity
+                style={styles.editBtn}
+                onPress={() => handleEdit(item)}
+              >
+                <Text style={styles.editText}>Editar</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.editBtn}>
-              <Text style={styles.editText}>Editar</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtn}
+                onPress={() => handleDelete(item._id)}
+              >
+                <Text style={styles.deleteText}>Excluir</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
       />
@@ -97,7 +133,7 @@ export default function ServicesAdmin() {
               keyboardType="numeric"
             />
 
-            <TouchableOpacity style={styles.saveBtn} onPress={handleCreate}>
+            <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
               <Text style={styles.saveText}>Salvar</Text>
             </TouchableOpacity>
 
@@ -117,7 +153,7 @@ export default function ServicesAdmin() {
           />
         </TouchableOpacity>
 
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/schedule-admin")}>
           <Image
             source={require("../assets/images/calendar.png")}
             style={styles.icon}
@@ -269,5 +305,18 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     tintColor: "#D4AF37",
+  },
+
+  deleteBtn: {
+    marginTop: 10,
+    backgroundColor: "#FFD700",
+    padding: 10,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+
+  deleteText: {
+    color: "#000",
+    fontWeight: "bold",
   },
 });

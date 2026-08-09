@@ -18,7 +18,6 @@ const appointmentSchema = new mongoose.Schema(
     date: String,
     time: String,
 
-    // 🔥 ADICIONADO (ESSA É A CHAVE DE TUDO)
     status: {
       type: String,
       enum: ["agendado", "cancelado", "concluido"],
