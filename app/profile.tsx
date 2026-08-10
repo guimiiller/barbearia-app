@@ -26,6 +26,8 @@ export default function Profile() {
     if (userStorage) {
       setUser(JSON.parse(userStorage));
     }
+
+    console.log("🔥 USER STORAGE:", userStorage);
   };
 
   const handleLogout = async () => {
@@ -54,6 +56,7 @@ export default function Profile() {
 
         <Text style={styles.name}>{user?.name || "Usuário"}</Text>
         <Text style={styles.email}>{user?.email || "email@email.com"}</Text>
+        <Text style={styles.email}>{user?.phone || "(00) 00000-0000"}</Text>
       </View>
 
       <View style={styles.options}>

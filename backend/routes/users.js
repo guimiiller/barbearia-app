@@ -5,11 +5,11 @@ const router = express.Router();
 
 router.put("/:id", async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, phone } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
       req.params.id,
-      { name, email },
+      { name, email, phone },
       { new: true },
     );
 
@@ -17,6 +17,7 @@ router.put("/:id", async (req, res) => {
       id: updatedUser._id,
       name: updatedUser.name,
       email: updatedUser.email,
+      phone: updatedUser.phone,
     });
   } catch (err) {
     res.status(500).json({ error: "Erro ao atualizar usuário" });

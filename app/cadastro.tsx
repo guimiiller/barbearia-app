@@ -25,6 +25,8 @@ export default function Register() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [errorPhone, setErrorPhone] = useState("");
 
   const [errorName, setErrorName] = useState("");
   const [errorEmail, setErrorEmail] = useState("");
@@ -68,6 +70,11 @@ export default function Register() {
       hasError = true;
     }
 
+    if (!phone) {
+      setErrorPhone("Digite seu telefone");
+      hasError = true;
+    }
+
     if (!password) {
       setErrorPassword("Digite uma senha");
       hasError = true;
@@ -92,7 +99,7 @@ export default function Register() {
     if (hasError) return;
 
     try {
-      await registerUser({ name, email, password });
+      await registerUser({ name, email, password, phone });
 
       clearFields();
       setShowSuccessModal(true);
@@ -130,6 +137,19 @@ export default function Register() {
           }}
         />
         {errorEmail ? <Text style={styles.error}>{errorEmail}</Text> : null}
+
+        <TextInput
+          placeholder="Telefone"
+          placeholderTextColor="#777"
+          style={styles.input}
+          value={phone}
+          onChangeText={(text) => {
+            setPhone(text);
+            setErrorPhone("");
+          }}
+        />
+
+        {errorPhone ? <Text style={styles.error}>{errorPhone}</Text> : null}
 
         <View style={styles.inputContainer}>
           <TextInput

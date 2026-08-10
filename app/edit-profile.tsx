@@ -17,6 +17,7 @@ export default function EditProfile() {
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [phone, setPhone] = useState("");
 
   useEffect(() => {
     loadUser();
@@ -29,6 +30,7 @@ export default function EditProfile() {
       const user = JSON.parse(userStorage);
       setName(user.name);
       setEmail(user.email);
+      setPhone(user.phone || "");
     }
   };
 
@@ -37,13 +39,17 @@ export default function EditProfile() {
       const userStorage = await AsyncStorage.getItem("user");
       const user = userStorage ? JSON.parse(userStorage) : null;
 
-      // 🔥 atualiza no backend
+      if (!user) {
+        Alert.alert("Erro", "Usuário não encontrado");
+        return;
+      }
+
       const updatedUser = await updateUser(user.id, {
         name,
         email,
+        phone,
       });
 
-      // 🔥 salva atualizado local
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
 
       Alert.alert("Sucesso", "Perfil atualizado!");
@@ -72,6 +78,16 @@ export default function EditProfile() {
         placeholderTextColor="#888"
         value={email}
         onChangeText={setEmail}
+      />
+
+      {/* 🔥 NOVO INPUT */}
+      <TextInput
+        style={styles.input}
+        placeholder="Telefone"
+        placeholderTextColor="#888"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
       />
 
       <TouchableOpacity style={styles.button} onPress={handleSave}>

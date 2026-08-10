@@ -6,7 +6,7 @@ import User from "../models/User.js";
 const router = express.Router();
 
 router.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
+  const { name, email, password, phone } = req.body;
 
   try {
     const userExists = await User.findOne({ email });
@@ -15,12 +15,17 @@ router.post("/register", async (req, res) => {
       return res.status(400).json({ error: "Email já cadastrado" });
     }
 
+    if (!phone) {
+      return res.status(400).json({ error: "Telefone é obrigatório" });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const user = await User.create({
       name,
       email,
       password: hashedPassword,
+      phone,
       role: "client",
     });
 
@@ -57,6 +62,7 @@ router.post("/login", async (req, res) => {
         id: user._id,
         name: user.name,
         email: user.email,
+        phone: user.phone,
         role: user.role,
       },
     });
