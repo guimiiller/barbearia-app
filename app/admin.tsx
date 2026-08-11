@@ -1,9 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
-import { usePathname, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -20,74 +21,42 @@ import {
 } from "../src/services/api";
 
 export default function Admin() {
-  const pathname = usePathname();
   const router = useRouter();
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadAppointments();
-    }, []),
-  );
+  const [selectedDay, setSelectedDay] = useState(0);
 
-  const loadAppointments = async () => {
-    try {
-      setLoading(true);
-
-      const data = await getAllAppointments();
-
-      const filtered = data.filter((a: any) => a.status !== "cancelado");
-
-      setAppointments(filtered);
-    } catch (error) {
-      console.log("❌ Erro ao buscar agendamentos", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCancel = async (item: any) => {
-    try {
-      await cancelAppointment(item._id);
-
-      await removeSlot(item.date, item.time);
-
-      await AsyncStorage.setItem(
-        "cancelMessage",
-        "❌ Seu agendamento foi cancelado pelo barbeiro.",
-      );
-
-      loadAppointments();
-    } catch (error) {
-      console.log(error);
-      alert("Erro ao cancelar agendamento");
-    }
-  };
-
-  const handleConclude = async (item: any) => {
-    try {
-      await concludeAppointment(item._id);
-
-      await removeSlot(item.date, item.time);
-
-      loadAppointments();
-    } catch (error) {
-      console.log("❌ ERRO AO CONCLUIR:", error);
-    }
-  };
-
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("user");
-    router.replace("/landing");
-  };
-
-  const formatDate = () => {
+  const getToday = () => {
     const today = new Date();
 
-    const day = today.getDate();
+    today.setHours(0, 0, 0, 0);
+
+    return today;
+  };
+
+  const getSelectedDate = () => {
+    const date = getToday();
+
+    date.setDate(date.getDate() + selectedDay);
+
+    return date;
+  };
+
+  const formatApiDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatDisplayDate = () => {
+    const date = getSelectedDate();
+
+    const day = date.getDate();
+
     const months = [
       "Jan",
       "Fev",
@@ -103,29 +72,232 @@ export default function Admin() {
       "Dez",
     ];
 
-    return `${day} ${months[today.getMonth()]}`;
+    return `${day} ${months[date.getMonth()]}`;
+  };
+
+  const getDayName = () => {
+    const date = getSelectedDate();
+
+    if (selectedDay === 0) {
+      return "Hoje";
+    }
+
+    if (selectedDay === 1) {
+      return "Amanhã";
+    }
+
+    const days = [
+      "Domingo",
+      "Segunda",
+      "Terça",
+      "Quarta",
+      "Quinta",
+      "Sexta",
+      "Sábado",
+    ];
+
+    return days[date.getDay()];
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAppointments();
+    }, [selectedDay]),
+  );
+
+  const loadAppointments = async () => {
+    try {
+      setLoading(true);
+
+      const data = await getAllAppointments();
+
+      const selectedDate = formatApiDate(getSelectedDate());
+
+      console.log("📅 DIA SELECIONADO:", selectedDate);
+      console.log("📋 AGENDAMENTOS:", data);
+
+      const filtered = data.filter((appointment: any) => {
+        return (
+          appointment.date === selectedDate &&
+          appointment.status !== "cancelado"
+        );
+      });
+
+      filtered.sort((a: any, b: any) => {
+        return a.time.localeCompare(b.time);
+      });
+
+      setAppointments(filtered);
+    } catch (error) {
+      console.log("❌ Erro ao buscar agendamentos", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const previousDay = () => {
+    if (selectedDay === 0) {
+      return;
+    }
+
+    setSelectedDay((prev) => prev - 1);
+  };
+
+  const nextDay = () => {
+    if (selectedDay === 6) {
+      return;
+    }
+
+    setSelectedDay((prev) => prev + 1);
+  };
+
+  const handleCancel = async (item: any) => {
+    Alert.alert(
+      "Cancelar agendamento",
+      `Deseja cancelar o agendamento de ${item.userId?.name || "cliente"}?`,
+      [
+        {
+          text: "Voltar",
+          style: "cancel",
+        },
+        {
+          text: "Cancelar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await cancelAppointment(item._id);
+
+              await removeSlot(item.date, item.time);
+
+              await AsyncStorage.setItem(
+                "cancelMessage",
+                "❌ Seu agendamento foi cancelado pelo barbeiro.",
+              );
+
+              loadAppointments();
+            } catch (error) {
+              console.log(error);
+
+              Alert.alert("Erro", "Não foi possível cancelar o agendamento.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleConclude = async (item: any) => {
+    Alert.alert(
+      "Concluir agendamento",
+      `Deseja marcar o atendimento de ${item.userId?.name || "cliente"} como concluído?`,
+      [
+        {
+          text: "Voltar",
+          style: "cancel",
+        },
+        {
+          text: "Concluir",
+          onPress: async () => {
+            try {
+              await concludeAppointment(item._id);
+
+              await removeSlot(item.date, item.time);
+
+              loadAppointments();
+            } catch (error) {
+              console.log("❌ ERRO AO CONCLUIR:", error);
+
+              Alert.alert("Erro", "Não foi possível concluir o agendamento.");
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const handleLogout = async () => {
+    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem("user");
+
+    router.replace("/landing");
   };
 
   return (
     <View style={styles.container}>
       {/* HEADER */}
-      <Text style={styles.title}>Olá, Barão 👑</Text>
+
+      <View style={styles.header}>
+        <Text style={styles.title}>Olá, Barão 👑</Text>
+
+        {/* SELETOR DE DIAS */}
+
+        <View style={styles.dateSelector}>
+          <TouchableOpacity
+            style={[
+              styles.arrowButton,
+              selectedDay === 0 && styles.arrowDisabled,
+            ]}
+            onPress={previousDay}
+            disabled={selectedDay === 0}
+          >
+            <Text style={styles.arrow}>‹</Text>
+          </TouchableOpacity>
+
+          <View style={styles.dateCenter}>
+            <Text style={styles.dayName}>{getDayName()}</Text>
+
+            <Text style={styles.dateText}>{formatDisplayDate()}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[
+              styles.arrowButton,
+              selectedDay === 6 && styles.arrowDisabled,
+            ]}
+            onPress={nextDay}
+            disabled={selectedDay === 6}
+          >
+            <Text style={styles.arrow}>›</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* RESUMO */}
 
       <View style={styles.summary}>
-        <Text style={styles.summaryText}>Hoje - {formatDate()}</Text>
-
         <Text style={styles.summaryText}>
-          Agendamentos hoje: {appointments.length}
+          Agendamentos: {appointments.length}
+        </Text>
+
+        <Text style={styles.summarySubText}>
+          {selectedDay === 0
+            ? "Agenda de hoje"
+            : `Agenda de ${formatDisplayDate()}`}
         </Text>
       </View>
 
       <View style={styles.divider} />
 
       {/* LISTA */}
+
       {loading ? (
-        <ActivityIndicator size="large" color="#FFD700" />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFD700" />
+        </View>
+      ) : appointments.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Text style={styles.emptyIcon}>📅</Text>
+
+          <Text style={styles.emptyTitle}>Nenhum agendamento</Text>
+
+          <Text style={styles.emptyText}>
+            Não existem agendamentos para este dia.
+          </Text>
+        </View>
       ) : (
         <FlatList
+          style={styles.list}
+          contentContainerStyle={styles.listContent}
           data={appointments}
           keyExtractor={(item) => item._id}
           showsVerticalScrollIndicator={false}
@@ -136,15 +308,36 @@ export default function Admin() {
                 item.status === "concluido" && styles.cardDone,
               ]}
             >
-              <Text style={styles.time}>
-                {item.time} - {item.userId?.name}
-              </Text>
+              {/* HORÁRIO + CLIENTE */}
+
+              <View style={styles.cardHeader}>
+                <Text style={styles.time}>{item.time}</Text>
+
+                <Text style={styles.clientName}>
+                  {item.userId?.name || "Cliente"}
+                </Text>
+              </View>
+
+              {/* TELEFONE */}
+
+              {item.userId?.phone ? (
+                <Text style={styles.phone}>📱 {item.userId.phone}</Text>
+              ) : null}
+
+              {/* SERVIÇOS */}
 
               <Text style={styles.service}>
                 {item.services?.map((s: any) => s.name).join(", ")}
               </Text>
 
+              {/* STATUS */}
+
+              {item.status === "concluido" && (
+                <Text style={styles.doneText}>✓ Atendimento concluído</Text>
+              )}
+
               {/* BOTÕES */}
+
               {item.status !== "concluido" && (
                 <View style={styles.actions}>
                   <TouchableOpacity
@@ -168,27 +361,38 @@ export default function Admin() {
       )}
 
       {/* LOGOUT */}
+
       <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
         <Text style={styles.logoutText}>Sair</Text>
       </TouchableOpacity>
 
       {/* NAVBAR */}
+
       <View style={styles.tabBar}>
-        <TouchableOpacity onPress={() => router.push("/")}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/")}
+        >
           <Image
             source={require("../assets/images/home.png")}
             style={styles.iconActive}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/schedule-admin")}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/schedule-admin")}
+        >
           <Image
             source={require("../assets/images/calendar.png")}
             style={styles.icon}
           />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={() => router.push("/services-admin")}>
+        <TouchableOpacity
+          style={styles.tabItem}
+          onPress={() => router.push("/services-admin")}
+        >
           <Image
             source={require("../assets/images/services.png")}
             style={styles.icon}
@@ -198,7 +402,6 @@ export default function Admin() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -317,5 +520,134 @@ const styles = StyleSheet.create({
     width: 25,
     height: 25,
     tintColor: "#D4AF37",
+  },
+
+  header: {
+    alignItems: "center",
+  },
+
+  dateSelector: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "#151515",
+    borderRadius: 15,
+    paddingVertical: 12,
+    paddingHorizontal: 10,
+  },
+
+  arrowButton: {
+    width: 45,
+    height: 45,
+    borderRadius: 23,
+    backgroundColor: "#D4AF37",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  arrowDisabled: {
+    opacity: 0.25,
+  },
+
+  arrow: {
+    color: "#000",
+    fontSize: 35,
+    lineHeight: 38,
+    fontWeight: "bold",
+  },
+
+  dateCenter: {
+    alignItems: "center",
+    flex: 1,
+  },
+
+  dayName: {
+    color: "#D4AF37",
+    fontSize: 15,
+    fontWeight: "bold",
+    textTransform: "uppercase",
+  },
+
+  dateText: {
+    color: "#fff",
+    fontSize: 22,
+    fontWeight: "bold",
+    marginTop: 2,
+  },
+
+  summarySubText: {
+    color: "#888",
+    fontSize: 13,
+    marginTop: 4,
+  },
+
+  list: {
+    flex: 1,
+  },
+
+  listContent: {
+    paddingBottom: 15,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingBottom: 80,
+  },
+
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 15,
+  },
+
+  emptyTitle: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+
+  emptyText: {
+    color: "#777",
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: "center",
+  },
+
+  cardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  clientName: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600",
+    flex: 1,
+  },
+
+  phone: {
+    color: "#999",
+    fontSize: 13,
+    marginBottom: 8,
+  },
+
+  doneText: {
+    color: "#D4AF37",
+    fontSize: 13,
+    marginTop: 10,
+    fontWeight: "bold",
+  },
+
+  tabItem: {
+    alignItems: "center",
   },
 });

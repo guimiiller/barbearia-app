@@ -10,77 +10,147 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import { getSchedule, saveSchedule } from "../src/services/api";
 
 export default function ScheduleAdmin() {
   const router = useRouter();
+
   const [selectedDate, setSelectedDate] = useState("");
   const [days, setDays] = useState<any[]>([]);
   const [slots, setSlots] = useState<string[]>([]);
   const [newTime, setNewTime] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const formatDate = (date: Date) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+  };
 
   useEffect(() => {
     const today = new Date();
+
     const nextDays: any[] = [];
 
     for (let i = 0; i < 7; i++) {
-      const d = new Date();
-      d.setDate(today.getDate() + i);
+      const date = new Date(today);
 
-      const formatted = d.toISOString().split("T")[0];
+      date.setHours(0, 0, 0, 0);
+      date.setDate(today.getDate() + i);
 
-      const day = d
-        .toLocaleDateString("pt-BR", { weekday: "short" })
+      const formatted = formatDate(date);
+
+      const day = date
+        .toLocaleDateString("pt-BR", {
+          weekday: "short",
+        })
         .toUpperCase()
         .replace(".", "");
 
       nextDays.push({
         fullDate: formatted,
         day,
-        date: d.getDate(),
+        date: date.getDate(),
       });
     }
 
     setDays(nextDays);
-    setSelectedDate(nextDays[0].fullDate);
+
+    if (nextDays.length > 0) {
+      setSelectedDate(nextDays[0].fullDate);
+    }
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (selectedDate) load();
+      if (!selectedDate) return;
+
+      loadSchedule(selectedDate);
     }, [selectedDate]),
   );
 
-  const load = async () => {
+  const loadSchedule = async (date: string) => {
     try {
-      const data = await getSchedule(selectedDate);
-      setSlots(data.slots?.map((s: any) => s.time) || []);
-    } catch (err) {
-      console.log("Erro ao carregar horários", err);
+      setLoading(true);
+
+      console.log("📅 CARREGANDO HORÁRIOS DO DIA:", date);
+
+      const data = await getSchedule(date);
+
+      const loadedSlots =
+        data?.slots
+          ?.map((slot: any) => slot.time)
+          .filter(Boolean)
+          .sort() || [];
+
+      setSlots([...loadedSlots]);
+
+      console.log("🕒 HORÁRIOS ENCONTRADOS:", loadedSlots);
+    } catch (error) {
+      console.log("❌ Erro ao carregar horários:", error);
+      setSlots([]);
+    } finally {
+      setLoading(false);
     }
   };
 
   const addTime = () => {
-    if (!newTime || slots.includes(newTime)) return;
+    const time = newTime.trim();
 
-    setSlots([...slots, newTime]);
+    if (!time) {
+      return;
+    }
+
+    if (slots.includes(time)) {
+      return;
+    }
+
+    setSlots((currentSlots) => {
+      return [...currentSlots, time].sort();
+    });
+
     setNewTime("");
   };
 
   const removeTime = (time: string) => {
-    setSlots(slots.filter((t) => t !== time));
+    setSlots((currentSlots) => {
+      return currentSlots.filter((slot) => slot !== time);
+    });
   };
 
   const save = async () => {
+    if (!selectedDate) {
+      return;
+    }
+
     try {
+      setLoading(true);
+
+      const normalizedSlots = [...slots].filter(Boolean).map((time) => ({
+        time,
+      }));
+
+      console.log("💾 SALVANDO:");
+      console.log("📅 DATA:", selectedDate);
+      console.log("🕒 HORÁRIOS:", normalizedSlots);
+
       await saveSchedule({
         date: selectedDate,
-        slots: slots.map((t) => ({ time: t })),
+        slots: normalizedSlots,
       });
 
-      alert("Horários salvos 🔥");
-    } catch (err) {
-      console.log(err);
+      await loadSchedule(selectedDate);
+
+      alert(`Horários de ${selectedDate} salvos 🔥`);
+    } catch (error) {
+      console.log("❌ ERRO AO SALVAR HORÁRIOS:", error);
+
+      alert("Erro ao salvar horários");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -88,7 +158,8 @@ export default function ScheduleAdmin() {
     <View style={styles.container}>
       <Text style={styles.title}>Controlar Horários</Text>
 
-      {/* 🔥 CALENDÁRIO IGUAL AO CLIENTE */}
+      {/* CALENDÁRIO */}
+
       <FlatList
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -100,7 +171,12 @@ export default function ScheduleAdmin() {
           return (
             <TouchableOpacity
               style={[styles.dateItem, selected && styles.dateActive]}
-              onPress={() => setSelectedDate(item.fullDate)}
+              onPress={() => {
+                console.log("📅 TROCANDO PARA:", item.fullDate);
+
+                setSelectedDate(item.fullDate);
+                setNewTime("");
+              }}
             >
               <Text style={[styles.dateDay, selected && styles.dateDayActive]}>
                 {item.day}
@@ -116,7 +192,10 @@ export default function ScheduleAdmin() {
         }}
       />
 
+      <Text style={{ color: "#fff" }}>Data selecionada: {selectedDate}</Text>
+
       {/* INPUT */}
+
       <TextInput
         placeholder="Ex: 14:00"
         placeholderTextColor="#777"
@@ -129,25 +208,43 @@ export default function ScheduleAdmin() {
         <Text style={styles.btnText}>+ Adicionar horário</Text>
       </TouchableOpacity>
 
-      {/* LISTA */}
-      <FlatList
-        data={slots}
-        keyExtractor={(item) => item}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.slot}
-            onPress={() => removeTime(item)}
-          >
-            <Text style={styles.slotText}>🕒 {item} (remover)</Text>
-          </TouchableOpacity>
-        )}
-      />
+      {/* HORÁRIOS */}
 
-      <TouchableOpacity style={styles.saveBtn} onPress={save}>
+      {loading ? (
+        <Text style={{ color: "#888" }}>Carregando...</Text>
+      ) : (
+        <FlatList
+          data={slots}
+          keyExtractor={(item, index) => `${item}-${index}`}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.slot}
+              onPress={() => removeTime(item)}
+            >
+              <Text style={styles.slotText}>🕒 {item} (remover)</Text>
+            </TouchableOpacity>
+          )}
+          ListEmptyComponent={
+            <Text style={{ color: "#888" }}>
+              Nenhum horário cadastrado para este dia.
+            </Text>
+          }
+        />
+      )}
+
+      {/* SALVAR */}
+
+      <TouchableOpacity
+        style={styles.saveBtn}
+        onPress={save}
+        disabled={loading}
+      >
         <Text style={styles.btnText}>Salvar</Text>
       </TouchableOpacity>
 
       {/* NAVBAR */}
+
       <View style={styles.tabBar}>
         <TouchableOpacity onPress={() => router.push("/")}>
           <Image

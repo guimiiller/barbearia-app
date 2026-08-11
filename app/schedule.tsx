@@ -1,6 +1,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+
 import { getAllAppointments, getSchedule } from "../src/services/api";
 
 export default function Schedule() {
@@ -8,49 +9,70 @@ export default function Schedule() {
   const params = useLocalSearchParams();
 
   const rescheduleId = params.rescheduleId as string | undefined;
+
   const services = params.services ? JSON.parse(params.services as string) : [];
 
   const formatDate = (date: Date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
+
     return `${year}-${month}-${day}`;
   };
 
   const [selectedBarber, setSelectedBarber] = useState(1);
+
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+
   const [selectedDate, setSelectedDate] = useState(formatDate(new Date()));
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [times, setTimes] = useState<string[]>([]);
 
   const barbers = [
-    { id: 1, name: "Barão" },
-    { id: 2, name: "..." },
-    { id: 3, name: "..." },
+    {
+      id: 1,
+      name: "Barão",
+    },
+    {
+      id: 2,
+      name: "...",
+    },
+    {
+      id: 3,
+      name: "...",
+    },
   ];
 
   const generateDates = () => {
-    const days = [];
+    const dates = [];
+
     const today = new Date();
 
+    today.setHours(0, 0, 0, 0);
+
     for (let i = 0; i < 7; i++) {
-      const future = new Date();
+      const future = new Date(today);
+
       future.setDate(today.getDate() + i);
 
+      const formatted = formatDate(future);
+
       const day = future
-        .toLocaleDateString("pt-BR", { weekday: "short" })
+        .toLocaleDateString("pt-BR", {
+          weekday: "short",
+        })
         .toUpperCase()
         .replace(".", "");
 
-      days.push({
-        fullDate: formatDate(future),
+      dates.push({
+        fullDate: formatted,
         day,
         date: future.getDate(),
       });
     }
 
-    return days;
+    return dates;
   };
 
   const dates = generateDates();
@@ -59,9 +81,12 @@ export default function Schedule() {
     const loadAppointments = async () => {
       try {
         const data = await getAllAppointments();
+
+        console.log("📋 AGENDAMENTOS:", data);
+
         setAppointments(data || []);
       } catch (err) {
-        console.log("Erro ao buscar agendamentos", err);
+        console.log("❌ Erro ao buscar agendamentos:", err);
       }
     };
 
@@ -71,16 +96,25 @@ export default function Schedule() {
   useEffect(() => {
     const loadSchedule = async () => {
       try {
+        console.log("📅 CLIENTE BUSCANDO HORÁRIOS:", selectedDate);
+
         const data = await getSchedule(selectedDate);
 
-        const horarios = data?.slots?.map((s: any) => s.time) || [];
+        const horarios =
+          data?.slots?.map((slot: any) => slot.time).filter(Boolean) || [];
 
         const uniqueSorted = [...new Set(horarios as string[])].sort();
 
+        console.log("🕒 HORÁRIOS DO DIA:", selectedDate, uniqueSorted);
+
         setTimes(uniqueSorted);
+
         setSelectedTime(null);
       } catch (err) {
-        console.log("Erro ao carregar horários", err);
+        console.log("❌ Erro ao carregar horários:", err);
+
+        setTimes([]);
+        setSelectedTime(null);
       }
     };
 
@@ -89,14 +123,18 @@ export default function Schedule() {
     }
   }, [selectedDate]);
 
-  const availableTimes = times.filter((t) => {
-    return !appointments.some((a) => {
-      const date = a.date.includes("T") ? a.date.split("T")[0] : a.date;
+  const availableTimes = times.filter((time) => {
+    return !appointments.some((appointment) => {
+      const appointmentDate =
+        typeof appointment.date === "string"
+          ? appointment.date.split("T")[0]
+          : appointment.date;
 
       return (
-        date === selectedDate &&
-        a.time === t &&
-        Number(a.barberId) === Number(selectedBarber)
+        appointmentDate === selectedDate &&
+        appointment.time === time &&
+        Number(appointment.barberId) === Number(selectedBarber) &&
+        appointment.status !== "cancelado"
       );
     });
   });
@@ -104,16 +142,22 @@ export default function Schedule() {
   const handleGoToConfirm = () => {
     if (!selectedTime) {
       Alert.alert("Erro", "Selecione um horário");
+
       return;
     }
 
     router.push({
       pathname: "/confirm",
+
       params: {
         services: JSON.stringify(services),
+
         date: selectedDate,
+
         time: selectedTime,
+
         barberId: selectedBarber,
+
         rescheduleId: rescheduleId || "",
       },
     });
@@ -133,13 +177,31 @@ export default function Schedule() {
             <TouchableOpacity
               key={item.fullDate}
               style={[styles.dateItem, selected && styles.dateActive]}
-              onPress={() => setSelectedDate(item.fullDate)}
+              onPress={() => {
+                console.log("📅 CLIENTE SELECIONOU:", item.fullDate);
+
+                setSelectedDate(item.fullDate);
+              }}
             >
-              <Text style={[styles.dateDay, selected && { color: "#000" }]}>
+              <Text
+                style={[
+                  styles.dateDay,
+                  selected && {
+                    color: "#000",
+                  },
+                ]}
+              >
                 {item.day}
               </Text>
 
-              <Text style={[styles.dateNumber, selected && { color: "#000" }]}>
+              <Text
+                style={[
+                  styles.dateNumber,
+                  selected && {
+                    color: "#000",
+                  },
+                ]}
+              >
                 {item.date}
               </Text>
             </TouchableOpacity>
@@ -160,6 +222,7 @@ export default function Schedule() {
                   : styles.barber
               }
             />
+
             <Text style={styles.barberName}>{barber.name}</Text>
           </View>
         ))}
@@ -169,19 +232,21 @@ export default function Schedule() {
         {availableTimes.length === 0 ? (
           <Text style={{ color: "#888" }}>Nenhum horário disponível</Text>
         ) : (
-          availableTimes.map((t) => (
+          availableTimes.map((time) => (
             <TouchableOpacity
-              key={t}
-              style={[styles.time, selectedTime === t && styles.timeActive]}
-              onPress={() => setSelectedTime(t)}
+              key={time}
+              style={[styles.time, selectedTime === time && styles.timeActive]}
+              onPress={() => setSelectedTime(time)}
             >
               <Text
                 style={[
                   styles.timeText,
-                  selectedTime === t && { color: "#000" },
+                  selectedTime === time && {
+                    color: "#000",
+                  },
                 ]}
               >
-                {t}
+                {time}
               </Text>
             </TouchableOpacity>
           ))
@@ -189,7 +254,12 @@ export default function Schedule() {
       </View>
 
       <TouchableOpacity
-        style={[styles.button, !selectedTime && { opacity: 0.5 }]}
+        style={[
+          styles.button,
+          !selectedTime && {
+            opacity: 0.5,
+          },
+        ]}
         disabled={!selectedTime}
         onPress={handleGoToConfirm}
       >
@@ -198,7 +268,6 @@ export default function Schedule() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
