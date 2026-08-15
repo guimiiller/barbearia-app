@@ -25,22 +25,17 @@ export default function Admin() {
 
   const [appointments, setAppointments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-
   const [selectedDay, setSelectedDay] = useState(0);
 
   const getToday = () => {
     const today = new Date();
-
     today.setHours(0, 0, 0, 0);
-
     return today;
   };
 
   const getSelectedDate = () => {
     const date = getToday();
-
     date.setDate(date.getDate() + selectedDay);
-
     return date;
   };
 
@@ -123,9 +118,7 @@ export default function Admin() {
         );
       });
 
-      filtered.sort((a: any, b: any) => {
-        return a.time.localeCompare(b.time);
-      });
+      filtered.sort((a: any, b: any) => a.time.localeCompare(b.time));
 
       setAppointments(filtered);
     } catch (error) {
@@ -136,17 +129,13 @@ export default function Admin() {
   };
 
   const previousDay = () => {
-    if (selectedDay === 0) {
-      return;
-    }
+    if (selectedDay === 0) return;
 
     setSelectedDay((prev) => prev - 1);
   };
 
   const nextDay = () => {
-    if (selectedDay === 6) {
-      return;
-    }
+    if (selectedDay === 6) return;
 
     setSelectedDay((prev) => prev + 1);
   };
@@ -166,7 +155,6 @@ export default function Admin() {
           onPress: async () => {
             try {
               await cancelAppointment(item._id);
-
               await removeSlot(item.date, item.time);
 
               await AsyncStorage.setItem(
@@ -188,8 +176,10 @@ export default function Admin() {
 
   const handleConclude = async (item: any) => {
     Alert.alert(
-      "Concluir agendamento",
-      `Deseja marcar o atendimento de ${item.userId?.name || "cliente"} como concluído?`,
+      "Concluir atendimento",
+      `Deseja marcar o atendimento de ${
+        item.userId?.name || "cliente"
+      } como concluído?`,
       [
         {
           text: "Voltar",
@@ -200,14 +190,13 @@ export default function Admin() {
           onPress: async () => {
             try {
               await concludeAppointment(item._id);
-
               await removeSlot(item.date, item.time);
 
               loadAppointments();
             } catch (error) {
               console.log("❌ ERRO AO CONCLUIR:", error);
 
-              Alert.alert("Erro", "Não foi possível concluir o agendamento.");
+              Alert.alert("Erro", "Não foi possível concluir o atendimento.");
             }
           },
         },
@@ -216,10 +205,22 @@ export default function Admin() {
   };
 
   const handleLogout = async () => {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("user");
+    Alert.alert("Sair da conta", "Deseja realmente sair?", [
+      {
+        text: "Cancelar",
+        style: "cancel",
+      },
+      {
+        text: "Sair",
+        style: "destructive",
+        onPress: async () => {
+          await AsyncStorage.removeItem("token");
+          await AsyncStorage.removeItem("user");
 
-    router.replace("/landing");
+          router.replace("/landing");
+        },
+      },
+    ]);
   };
 
   return (
@@ -227,9 +228,21 @@ export default function Admin() {
       {/* HEADER */}
 
       <View style={styles.header}>
-        <Text style={styles.title}>Olá, Barão 👑</Text>
+        <View style={styles.headerTop}>
+          <View>
+            <Text style={styles.eyebrow}>PAINEL DO BARÃO</Text>
 
-        {/* SELETOR DE DIAS */}
+            <Text style={styles.title}>
+              Olá, Barão <Text style={styles.crown}>♛</Text>
+            </Text>
+          </View>
+
+          <View style={styles.profileCircle}>
+            <Text style={styles.profileLetter}>B</Text>
+          </View>
+        </View>
+
+        {/* SELETOR DE DATA */}
 
         <View style={styles.dateSelector}>
           <TouchableOpacity
@@ -265,33 +278,41 @@ export default function Admin() {
       {/* RESUMO */}
 
       <View style={styles.summary}>
-        <Text style={styles.summaryText}>
-          Agendamentos: {appointments.length}
-        </Text>
+        <View>
+          <Text style={styles.summaryLabel}>AGENDA</Text>
 
-        <Text style={styles.summarySubText}>
-          {selectedDay === 0
-            ? "Agenda de hoje"
-            : `Agenda de ${formatDisplayDate()}`}
-        </Text>
+          <Text style={styles.summaryTitle}>
+            {selectedDay === 0
+              ? "Atendimentos de hoje"
+              : `Atendimentos de ${formatDisplayDate()}`}
+          </Text>
+        </View>
+
+        <View style={styles.countBox}>
+          <Text style={styles.countNumber}>{appointments.length}</Text>
+
+          <Text style={styles.countLabel}>HORÁRIOS</Text>
+        </View>
       </View>
-
-      <View style={styles.divider} />
 
       {/* LISTA */}
 
       {loading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#FFD700" />
+          <ActivityIndicator size="large" color="#FFFFFF" />
+
+          <Text style={styles.loadingText}>Carregando agenda...</Text>
         </View>
       ) : appointments.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📅</Text>
+          <View style={styles.emptyIconContainer}>
+            <Text style={styles.emptyIcon}>○</Text>
+          </View>
 
-          <Text style={styles.emptyTitle}>Nenhum agendamento</Text>
+          <Text style={styles.emptyTitle}>Agenda livre</Text>
 
           <Text style={styles.emptyText}>
-            Não existem agendamentos para este dia.
+            Nenhum atendimento está marcado para este dia.
           </Text>
         </View>
       ) : (
@@ -301,39 +322,68 @@ export default function Admin() {
           data={appointments}
           keyExtractor={(item) => item._id}
           showsVerticalScrollIndicator={false}
-          renderItem={({ item }) => (
+          renderItem={({ item, index }) => (
             <View
               style={[
                 styles.card,
                 item.status === "concluido" && styles.cardDone,
               ]}
             >
-              {/* HORÁRIO + CLIENTE */}
+              {/* LINHA SUPERIOR */}
 
-              <View style={styles.cardHeader}>
-                <Text style={styles.time}>{item.time}</Text>
+              <View style={styles.cardTop}>
+                <View style={styles.timeContainer}>
+                  <Text style={styles.time}>{item.time}</Text>
 
-                <Text style={styles.clientName}>
-                  {item.userId?.name || "Cliente"}
-                </Text>
+                  <View style={styles.timeLine} />
+                </View>
+
+                <View style={styles.clientContainer}>
+                  <Text style={styles.clientLabel}>CLIENTE</Text>
+
+                  <Text style={styles.clientName}>
+                    {item.userId?.name || "Cliente"}
+                  </Text>
+                </View>
+
+                <View style={styles.numberBadge}>
+                  <Text style={styles.numberBadgeText}>
+                    {String(index + 1).padStart(2, "0")}
+                  </Text>
+                </View>
               </View>
+
+              <View style={styles.cardDivider} />
 
               {/* TELEFONE */}
 
               {item.userId?.phone ? (
-                <Text style={styles.phone}>📱 {item.userId.phone}</Text>
+                <View style={styles.infoRow}>
+                  <Text style={styles.infoLabel}>TELEFONE</Text>
+
+                  <Text style={styles.infoValue}>{item.userId.phone}</Text>
+                </View>
               ) : null}
 
               {/* SERVIÇOS */}
 
-              <Text style={styles.service}>
-                {item.services?.map((s: any) => s.name).join(", ")}
-              </Text>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>SERVIÇO</Text>
+
+                <Text style={styles.infoValue}>
+                  {item.services?.map((s: any) => s.name).join(", ") ||
+                    "Serviço"}
+                </Text>
+              </View>
 
               {/* STATUS */}
 
               {item.status === "concluido" && (
-                <Text style={styles.doneText}>✓ Atendimento concluído</Text>
+                <View style={styles.doneContainer}>
+                  <View style={styles.doneDot} />
+
+                  <Text style={styles.doneText}>Atendimento concluído</Text>
+                </View>
               )}
 
               {/* BOTÕES */}
@@ -343,15 +393,21 @@ export default function Admin() {
                   <TouchableOpacity
                     style={styles.concludeBtn}
                     onPress={() => handleConclude(item)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.btnTextDark}>Concluir</Text>
+                    <Text style={styles.concludeBtnText}>
+                      Concluir atendimento
+                    </Text>
+
+                    <Text style={styles.buttonArrow}>→</Text>
                   </TouchableOpacity>
 
                   <TouchableOpacity
                     style={styles.cancelBtn}
                     onPress={() => handleCancel(item)}
+                    activeOpacity={0.8}
                   >
-                    <Text style={styles.btnText}>Cancelar</Text>
+                    <Text style={styles.cancelBtnText}>Cancelar</Text>
                   </TouchableOpacity>
                 </View>
               )}
@@ -362,8 +418,12 @@ export default function Admin() {
 
       {/* LOGOUT */}
 
-      <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-        <Text style={styles.logoutText}>Sair</Text>
+      <TouchableOpacity
+        style={styles.logoutBtn}
+        onPress={handleLogout}
+        activeOpacity={0.8}
+      >
+        <Text style={styles.logoutText}>Sair da conta</Text>
       </TouchableOpacity>
 
       {/* NAVBAR */}
@@ -371,12 +431,14 @@ export default function Admin() {
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabItem}
-          onPress={() => router.push("/")}
+          onPress={() => router.push("/admin")}
         >
           <Image
             source={require("../assets/images/home.png")}
             style={styles.iconActive}
           />
+
+          <Text style={styles.tabTextActive}>Início</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -387,6 +449,8 @@ export default function Admin() {
             source={require("../assets/images/calendar.png")}
             style={styles.icon}
           />
+
+          <Text style={styles.tabText}>Agenda</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -397,257 +461,473 @@ export default function Admin() {
             source={require("../assets/images/services.png")}
             style={styles.icon}
           />
+
+          <Text style={styles.tabText}>Serviços</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0D0D0D",
-    padding: 20,
+    backgroundColor: "#080808",
+    paddingHorizontal: 20,
+    paddingTop: 48,
+  },
+
+  /* HEADER */
+
+  header: {
+    marginBottom: 24,
+  },
+
+  headerTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 22,
+  },
+
+  eyebrow: {
+    color: "#777",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 2,
+    marginBottom: 6,
   },
 
   title: {
-    color: "#FFF",
-    fontSize: 26,
-    fontWeight: "bold",
-    marginTop: 40,
+    color: "#FFFFFF",
+    fontSize: 28,
+    fontWeight: "800",
+    letterSpacing: -0.7,
   },
 
-  summary: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginVertical: 20,
+  crown: {
+    color: "#FFFFFF",
   },
 
-  summaryText: {
-    color: "#AAA",
-    fontSize: 14,
-  },
-
-  divider: {
-    height: 1,
-    backgroundColor: "#2A2A2A",
-    marginBottom: 10,
-  },
-
-  card: {
-    backgroundColor: "#1A1A1A",
-    padding: 16,
-    borderRadius: 14,
-    marginBottom: 12,
-  },
-
-  cardDone: {
-    opacity: 0.5,
-  },
-
-  time: {
-    color: "#FFD700",
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-
-  service: {
-    color: "#999",
-    marginTop: 4,
-  },
-
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 12,
-  },
-
-  concludeBtn: {
-    backgroundColor: "#FFD700",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-
-  cancelBtn: {
-    backgroundColor: "#333",
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-  },
-
-  btnText: {
-    color: "#FFF",
-    fontWeight: "bold",
-  },
-
-  btnTextDark: {
-    color: "#000",
-    fontWeight: "bold",
-  },
-
-  logoutBtn: {
-    backgroundColor: "#FFD700",
-    padding: 14,
-    borderRadius: 12,
+  profileCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
-    marginBottom: 70,
+    justifyContent: "center",
   },
 
-  logoutText: {
-    color: "#000",
-    fontWeight: "bold",
+  profileLetter: {
+    color: "#000000",
+    fontSize: 18,
+    fontWeight: "800",
   },
 
-  tabBar: {
-    position: "absolute",
-    bottom: 20,
-    alignSelf: "center",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#1A1A1A",
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-    borderRadius: 20,
-    width: "70%",
-  },
-  icon: {
-    width: 25,
-    height: 25,
-    tintColor: "#B0B0B0",
-  },
-  iconActive: {
-    width: 25,
-    height: 25,
-    tintColor: "#D4AF37",
-  },
-
-  header: {
-    alignItems: "center",
-  },
+  /* DATA */
 
   dateSelector: {
     width: "100%",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    backgroundColor: "#151515",
-    borderRadius: 15,
-    paddingVertical: 12,
-    paddingHorizontal: 10,
+    backgroundColor: "#121212",
+    borderWidth: 1,
+    borderColor: "#242424",
+    borderRadius: 20,
+    padding: 10,
   },
 
   arrowButton: {
-    width: 45,
-    height: 45,
-    borderRadius: 23,
-    backgroundColor: "#D4AF37",
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
 
   arrowDisabled: {
-    opacity: 0.25,
+    opacity: 0.2,
   },
 
   arrow: {
-    color: "#000",
-    fontSize: 35,
-    lineHeight: 38,
-    fontWeight: "bold",
+    color: "#000000",
+    fontSize: 32,
+    lineHeight: 34,
+    fontWeight: "400",
   },
 
   dateCenter: {
-    alignItems: "center",
     flex: 1,
+    alignItems: "center",
   },
 
   dayName: {
-    color: "#D4AF37",
-    fontSize: 15,
-    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 1.5,
     textTransform: "uppercase",
   },
 
   dateText: {
-    color: "#fff",
-    fontSize: 22,
-    fontWeight: "bold",
-    marginTop: 2,
+    color: "#888",
+    fontSize: 14,
+    marginTop: 3,
   },
 
-  summarySubText: {
-    color: "#888",
-    fontSize: 13,
-    marginTop: 4,
+  /* RESUMO */
+
+  summary: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 18,
   },
+
+  summaryLabel: {
+    color: "#666",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 2,
+    marginBottom: 5,
+  },
+
+  summaryTitle: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "700",
+  },
+
+  countBox: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 14,
+    minWidth: 62,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    alignItems: "center",
+  },
+
+  countNumber: {
+    color: "#000000",
+    fontSize: 19,
+    fontWeight: "800",
+  },
+
+  countLabel: {
+    color: "#555",
+    fontSize: 7,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginTop: 1,
+  },
+
+  /* LISTA */
 
   list: {
     flex: 1,
   },
 
   listContent: {
-    paddingBottom: 15,
+    paddingBottom: 170,
   },
 
   loadingContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
+    paddingBottom: 120,
+  },
+
+  loadingText: {
+    color: "#666",
+    fontSize: 13,
+    marginTop: 12,
   },
 
   emptyContainer: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 80,
+    paddingBottom: 130,
+    paddingHorizontal: 40,
+  },
+
+  emptyIconContainer: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: "#121212",
+    borderWidth: 1,
+    borderColor: "#292929",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
   },
 
   emptyIcon: {
-    fontSize: 40,
-    marginBottom: 15,
+    color: "#FFFFFF",
+    fontSize: 30,
   },
 
   emptyTitle: {
-    color: "#fff",
-    fontSize: 18,
-    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontSize: 19,
+    fontWeight: "800",
   },
 
   emptyText: {
-    color: "#777",
-    fontSize: 14,
+    color: "#666",
+    fontSize: 13,
     marginTop: 8,
     textAlign: "center",
+    lineHeight: 20,
   },
 
-  cardHeader: {
+  /* CARD */
+
+  card: {
+    backgroundColor: "#121212",
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "#242424",
+  },
+
+  cardDone: {
+    opacity: 0.5,
+  },
+
+  cardTop: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
+  },
+
+  timeContainer: {
+    width: 70,
+    alignItems: "flex-start",
+  },
+
+  time: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+  },
+
+  timeLine: {
+    width: 25,
+    height: 2,
+    backgroundColor: "#FFFFFF",
+    marginTop: 7,
+    borderRadius: 2,
+  },
+
+  clientContainer: {
+    flex: 1,
+    marginLeft: 8,
+  },
+
+  clientLabel: {
+    color: "#666",
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+    marginBottom: 3,
   },
 
   clientName: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "600",
-    flex: 1,
+    fontWeight: "700",
   },
 
-  phone: {
-    color: "#999",
+  numberBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#1D1D1D",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  numberBadgeText: {
+    color: "#666",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  cardDivider: {
+    height: 1,
+    backgroundColor: "#242424",
+    marginVertical: 16,
+  },
+
+  infoRow: {
+    flexDirection: "row",
+    marginBottom: 9,
+  },
+
+  infoLabel: {
+    width: 70,
+    color: "#555",
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 1.2,
+    paddingTop: 2,
+  },
+
+  infoValue: {
+    flex: 1,
+    color: "#BDBDBD",
     fontSize: 13,
-    marginBottom: 8,
+    lineHeight: 18,
+  },
+
+  /* CONCLUÍDO */
+
+  doneContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: "#242424",
+  },
+
+  doneDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: "#FFFFFF",
+    marginRight: 8,
   },
 
   doneText: {
-    color: "#D4AF37",
-    fontSize: 13,
-    marginTop: 10,
-    fontWeight: "bold",
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  /* AÇÕES */
+
+  actions: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 16,
+  },
+
+  concludeBtn: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    minHeight: 46,
+    borderRadius: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 15,
+  },
+
+  concludeBtnText: {
+    color: "#000000",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  buttonArrow: {
+    color: "#000000",
+    fontSize: 19,
+    fontWeight: "400",
+  },
+
+  cancelBtn: {
+    minHeight: 46,
+    paddingHorizontal: 16,
+    borderRadius: 13,
+    backgroundColor: "#1D1D1D",
+    borderWidth: 1,
+    borderColor: "#303030",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelBtnText: {
+    color: "#AAAAAA",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  /* LOGOUT */
+
+  logoutBtn: {
+    position: "absolute",
+    bottom: 94,
+    right: 20,
+    left: 20,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: "#111111",
+    borderWidth: 1,
+    borderColor: "#292929",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  logoutText: {
+    color: "#777",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+
+  /* NAVBAR */
+
+  tabBar: {
+    position: "absolute",
+    bottom: 22,
+    alignSelf: "center",
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    backgroundColor: "#151515",
+    borderWidth: 1,
+    borderColor: "#282828",
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 22,
+    width: "78%",
   },
 
   tabItem: {
     alignItems: "center",
+    justifyContent: "center",
+    minWidth: 70,
+  },
+
+  icon: {
+    width: 22,
+    height: 22,
+    tintColor: "#666666",
+  },
+
+  iconActive: {
+    width: 22,
+    height: 22,
+    tintColor: "#FFFFFF",
+  },
+
+  tabText: {
+    color: "#666666",
+    fontSize: 9,
+    fontWeight: "700",
+    marginTop: 4,
+  },
+
+  tabTextActive: {
+    color: "#FFFFFF",
+    fontSize: 9,
+    fontWeight: "800",
+    marginTop: 4,
   },
 });

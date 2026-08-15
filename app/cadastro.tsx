@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   Image,
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -18,6 +19,7 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -25,11 +27,10 @@ export default function Register() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showTermsModal, setShowTermsModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [phone, setPhone] = useState("");
-  const [errorPhone, setErrorPhone] = useState("");
 
   const [errorName, setErrorName] = useState("");
   const [errorEmail, setErrorEmail] = useState("");
+  const [errorPhone, setErrorPhone] = useState("");
   const [errorPassword, setErrorPassword] = useState("");
   const [errorConfirmPassword, setErrorConfirmPassword] = useState("");
   const [errorTerms, setErrorTerms] = useState("");
@@ -44,12 +45,14 @@ export default function Register() {
     setEmail("");
     setPassword("");
     setConfirmPassword("");
+    setPhone("");
     setAcceptTerms(false);
   };
 
   const handleRegister = async () => {
     setErrorName("");
     setErrorEmail("");
+    setErrorPhone("");
     setErrorPassword("");
     setErrorConfirmPassword("");
     setErrorTerms("");
@@ -57,12 +60,12 @@ export default function Register() {
 
     let hasError = false;
 
-    if (!name) {
+    if (!name.trim()) {
       setErrorName("Digite seu nome");
       hasError = true;
     }
 
-    if (!email) {
+    if (!email.trim()) {
       setErrorEmail("Digite seu e-mail");
       hasError = true;
     } else if (!isValidEmail(email)) {
@@ -70,7 +73,7 @@ export default function Register() {
       hasError = true;
     }
 
-    if (!phone) {
+    if (!phone.trim()) {
       setErrorPhone("Digite seu telefone");
       hasError = true;
     }
@@ -92,142 +95,301 @@ export default function Register() {
     }
 
     if (!acceptTerms) {
-      setErrorTerms("Aceite os termos");
+      setErrorTerms("Aceite os termos para continuar");
       hasError = true;
     }
 
     if (hasError) return;
 
     try {
-      await registerUser({ name, email, password, phone });
+      await registerUser({
+        name,
+        email,
+        password,
+        phone,
+      });
 
       clearFields();
       setShowSuccessModal(true);
     } catch (err: any) {
       console.log("ERRO COMPLETO:", err?.response?.data);
+
       setErrorGeneral(err?.response?.data?.error || "Erro ao cadastrar");
     }
   };
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>Logo Barão</Text>
-
-      <View style={styles.inputs}>
-        <TextInput
-          placeholder="Nome completo"
-          placeholderTextColor="#777"
-          style={styles.input}
-          value={name}
-          onChangeText={(text) => {
-            setName(text);
-            setErrorName("");
-          }}
-        />
-        {errorName ? <Text style={styles.error}>{errorName}</Text> : null}
-
-        <TextInput
-          placeholder="E-mail"
-          placeholderTextColor="#777"
-          style={styles.input}
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            setErrorEmail("");
-          }}
-        />
-        {errorEmail ? <Text style={styles.error}>{errorEmail}</Text> : null}
-
-        <TextInput
-          placeholder="Telefone"
-          placeholderTextColor="#777"
-          style={styles.input}
-          value={phone}
-          onChangeText={(text) => {
-            setPhone(text);
-            setErrorPhone("");
-          }}
-        />
-
-        {errorPhone ? <Text style={styles.error}>{errorPhone}</Text> : null}
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Senha"
-            placeholderTextColor="#777"
-            secureTextEntry={!showPassword}
-            style={styles.inputPassword}
-            value={password}
-            onChangeText={setPassword}
-          />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Image
-              source={
-                showPassword
-                  ? require("../assets/images/eye-off.png")
-                  : require("../assets/images/eye.png")
-              }
-              style={styles.icon}
-            />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.inputContainer}>
-          <TextInput
-            placeholder="Confirmar senha"
-            placeholderTextColor="#777"
-            secureTextEntry={!showConfirmPassword}
-            style={styles.inputPassword}
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-          />
-          <TouchableOpacity
-            onPress={() => setShowConfirmPassword(!showConfirmPassword)}
-          >
-            <Image
-              source={
-                showConfirmPassword
-                  ? require("../assets/images/eye-off.png")
-                  : require("../assets/images/eye.png")
-              }
-              style={styles.icon}
-            />
-          </TouchableOpacity>
-        </View>
-
-        {errorGeneral ? (
-          <Text style={styles.errorCenter}>{errorGeneral}</Text>
-        ) : null}
-      </View>
-
-      <TouchableOpacity
-        style={styles.termsContainer}
-        onPress={() => setAcceptTerms(!acceptTerms)}
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
       >
-        <View style={[styles.checkbox, acceptTerms && styles.checkboxActive]} />
+        {/* VOLTAR */}
 
-        <Text style={styles.termsText}>
-          Aceito os{" "}
-          <Text
-            style={styles.linkTerms}
-            onPress={() => setShowTermsModal(true)}
-          >
-            Termos de Uso
+        <TouchableOpacity
+          style={styles.backButton}
+          onPress={() => router.back()}
+          activeOpacity={0.7}
+        >
+          <Text style={styles.backIcon}>‹</Text>
+        </TouchableOpacity>
+
+        {/* HEADER */}
+
+        <View style={styles.header}>
+          <View style={styles.brand}>
+            <Text style={styles.brandTitle}>BARÃO</Text>
+
+            <View style={styles.brandLine} />
+
+            <Text style={styles.brandSubtitle}>BARBEARIA</Text>
+          </View>
+
+          <Text style={styles.title}>Crie sua conta.</Text>
+
+          <Text style={styles.subtitle}>
+            Faça seu cadastro e agende seu próximo corte.
           </Text>
-        </Text>
-      </TouchableOpacity>
+        </View>
 
-      {errorTerms ? <Text style={styles.error}>{errorTerms}</Text> : null}
+        {/* FORM */}
 
-      <TouchableOpacity style={styles.button} onPress={handleRegister}>
-        <Text style={styles.buttonText}>Cadastrar</Text>
-      </TouchableOpacity>
+        <View style={styles.form}>
+          {/* NOME */}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>NOME COMPLETO</Text>
+
+            <TextInput
+              placeholder="Seu nome"
+              placeholderTextColor="#666"
+              style={[styles.input, errorName ? styles.inputError : null]}
+              value={name}
+              autoCapitalize="words"
+              onChangeText={(text) => {
+                setName(text);
+                setErrorName("");
+                setErrorGeneral("");
+              }}
+            />
+
+            {errorName ? <Text style={styles.error}>{errorName}</Text> : null}
+          </View>
+
+          {/* EMAIL */}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>E-MAIL</Text>
+
+            <TextInput
+              placeholder="seu@email.com"
+              placeholderTextColor="#666"
+              style={[styles.input, errorEmail ? styles.inputError : null]}
+              value={email}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onChangeText={(text) => {
+                setEmail(text);
+                setErrorEmail("");
+                setErrorGeneral("");
+              }}
+            />
+
+            {errorEmail ? <Text style={styles.error}>{errorEmail}</Text> : null}
+          </View>
+
+          {/* TELEFONE */}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>TELEFONE</Text>
+
+            <TextInput
+              placeholder="(00) 00000-0000"
+              placeholderTextColor="#666"
+              style={[styles.input, errorPhone ? styles.inputError : null]}
+              value={phone}
+              keyboardType="phone-pad"
+              onChangeText={(text) => {
+                setPhone(text);
+                setErrorPhone("");
+                setErrorGeneral("");
+              }}
+            />
+
+            {errorPhone ? <Text style={styles.error}>{errorPhone}</Text> : null}
+          </View>
+
+          {/* SENHA */}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>SENHA</Text>
+
+            <View
+              style={[
+                styles.passwordContainer,
+                errorPassword ? styles.inputError : null,
+              ]}
+            >
+              <TextInput
+                placeholder="Mínimo 6 caracteres"
+                placeholderTextColor="#666"
+                secureTextEntry={!showPassword}
+                style={styles.passwordInput}
+                value={password}
+                autoCapitalize="none"
+                onChangeText={(text) => {
+                  setPassword(text);
+                  setErrorPassword("");
+                  setErrorGeneral("");
+                }}
+              />
+
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowPassword(!showPassword)}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={
+                    showPassword
+                      ? require("../assets/images/eye-off.png")
+                      : require("../assets/images/eye.png")
+                  }
+                  style={styles.eyeIcon}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {errorPassword ? (
+              <Text style={styles.error}>{errorPassword}</Text>
+            ) : null}
+          </View>
+
+          {/* CONFIRMAR SENHA */}
+
+          <View style={styles.field}>
+            <Text style={styles.label}>CONFIRMAR SENHA</Text>
+
+            <View
+              style={[
+                styles.passwordContainer,
+                errorConfirmPassword ? styles.inputError : null,
+              ]}
+            >
+              <TextInput
+                placeholder="Digite sua senha novamente"
+                placeholderTextColor="#666"
+                secureTextEntry={!showConfirmPassword}
+                style={styles.passwordInput}
+                value={confirmPassword}
+                autoCapitalize="none"
+                onChangeText={(text) => {
+                  setConfirmPassword(text);
+                  setErrorConfirmPassword("");
+                  setErrorGeneral("");
+                }}
+              />
+
+              <TouchableOpacity
+                style={styles.eyeButton}
+                onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                activeOpacity={0.7}
+              >
+                <Image
+                  source={
+                    showConfirmPassword
+                      ? require("../assets/images/eye-off.png")
+                      : require("../assets/images/eye.png")
+                  }
+                  style={styles.eyeIcon}
+                />
+              </TouchableOpacity>
+            </View>
+
+            {errorConfirmPassword ? (
+              <Text style={styles.error}>{errorConfirmPassword}</Text>
+            ) : null}
+          </View>
+
+          {/* ERRO GERAL */}
+
+          {errorGeneral ? (
+            <View style={styles.generalErrorContainer}>
+              <Text style={styles.generalError}>{errorGeneral}</Text>
+            </View>
+          ) : null}
+
+          {/* TERMOS */}
+
+          <TouchableOpacity
+            style={styles.termsContainer}
+            onPress={() => {
+              setAcceptTerms(!acceptTerms);
+              setErrorTerms("");
+            }}
+            activeOpacity={0.7}
+          >
+            <View
+              style={[styles.checkbox, acceptTerms && styles.checkboxActive]}
+            >
+              {acceptTerms ? <Text style={styles.checkmark}>✓</Text> : null}
+            </View>
+
+            <Text style={styles.termsText}>
+              Aceito os{" "}
+              <Text
+                style={styles.linkTerms}
+                onPress={() => setShowTermsModal(true)}
+              >
+                Termos de Uso
+              </Text>
+            </Text>
+          </TouchableOpacity>
+
+          {errorTerms ? <Text style={styles.error}>{errorTerms}</Text> : null}
+
+          {/* CADASTRAR */}
+
+          <TouchableOpacity
+            style={styles.button}
+            onPress={handleRegister}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.buttonText}>Criar minha conta</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* FOOTER */}
+
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>Já tem uma conta?</Text>
+
+          <Link href="/login" asChild>
+            <TouchableOpacity activeOpacity={0.7}>
+              <Text style={styles.loginLink}>Fazer login</Text>
+            </TouchableOpacity>
+          </Link>
+        </View>
+      </ScrollView>
+
+      {/* MODAL SUCESSO */}
 
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>🎉 Sucesso</Text>
-            <Text>Cadastro realizado!</Text>
+            <View style={styles.successIcon}>
+              <Text style={styles.successCheck}>✓</Text>
+            </View>
+
+            <Text style={styles.modalTitle}>Cadastro realizado</Text>
+
+            <Text style={styles.modalText}>
+              Sua conta foi criada com sucesso.
+              {"\n"}
+              Agora você já pode fazer login.
+            </Text>
 
             <TouchableOpacity
               style={styles.modalButton}
@@ -235,6 +397,7 @@ export default function Register() {
                 setShowSuccessModal(false);
                 router.push("/login");
               }}
+              activeOpacity={0.85}
             >
               <Text style={styles.modalButtonText}>Ir para login</Text>
             </TouchableOpacity>
@@ -242,37 +405,40 @@ export default function Register() {
         </View>
       </Modal>
 
+      {/* MODAL TERMOS */}
+
       <Modal visible={showTermsModal} transparent animationType="slide">
         <View style={styles.modalContainer}>
-          <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>📄 Termos de Uso</Text>
+          <View style={styles.termsModalBox}>
+            <Text style={styles.modalTitle}>Termos de Uso</Text>
 
-            <Text style={{ color: "#fff", margin: 20 }}>
-              Ao utilizar este aplicativo, você concorda com as seguintes
-              condições:
-              {"\n\n"}• Os agendamentos são de responsabilidade do usuário.
-              {"\n"}• Cancelamentos devem ser feitos com antecedência.
-              {"\n"}• O não comparecimento pode gerar bloqueio futuro.
-              {"\n"}• Seus dados são usados apenas para funcionamento do app.
-              {"\n\n"}Ao continuar, você aceita estes termos.
-            </Text>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={styles.termsScroll}
+            >
+              <Text style={styles.modalTextLeft}>
+                Ao utilizar este aplicativo, você concorda com as seguintes
+                condições:
+                {"\n\n"}• Os agendamentos são de responsabilidade do usuário.
+                {"\n\n"}• Cancelamentos devem ser feitos com antecedência.
+                {"\n\n"}• O não comparecimento pode gerar bloqueio futuro.
+                {"\n\n"}• Seus dados são usados apenas para funcionamento do
+                aplicativo.
+                {"\n\n"}
+                Ao continuar, você aceita estes termos.
+              </Text>
+            </ScrollView>
 
             <TouchableOpacity
               style={styles.modalButton}
               onPress={() => setShowTermsModal(false)}
+              activeOpacity={0.85}
             >
-              <Text style={styles.modalButtonText}>Fechar</Text>
+              <Text style={styles.modalButtonText}>Entendi</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
-
-      <Text style={styles.footerText}>
-        Já tem uma conta?{" "}
-        <Link href="/login" style={styles.link}>
-          Fazer login
-        </Link>
-      </Text>
     </View>
   );
 }
@@ -280,217 +446,327 @@ export default function Register() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0D0D0D",
+    backgroundColor: "#080808",
+  },
+
+  scrollContent: {
+    paddingHorizontal: 28,
+    paddingTop: 65,
+    paddingBottom: 40,
+  },
+
+  backButton: {
+    position: "absolute",
+    top: 58,
+    left: 24,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#151515",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    zIndex: 10,
   },
 
-  logo: {
+  backIcon: {
     color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 30,
+    fontSize: 34,
+    fontWeight: "300",
+    lineHeight: 34,
+    marginTop: -3,
   },
 
-  inputs: {
+  header: {
+    alignItems: "center",
+    marginTop: 25,
+    marginBottom: 42,
+  },
+
+  brand: {
+    alignItems: "center",
+    marginBottom: 34,
+  },
+
+  brandTitle: {
+    color: "#fff",
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: 6,
+  },
+
+  brandLine: {
+    width: 30,
+    height: 2,
+    backgroundColor: "#fff",
+    marginTop: 7,
+    marginBottom: 5,
+  },
+
+  brandSubtitle: {
+    color: "#888",
+    fontSize: 8,
+    fontWeight: "600",
+    letterSpacing: 3,
+  },
+
+  title: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  subtitle: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+    lineHeight: 20,
+    paddingHorizontal: 15,
+  },
+
+  form: {
     width: "100%",
   },
 
+  field: {
+    marginBottom: 20,
+  },
+
+  label: {
+    color: "#aaa",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginBottom: 9,
+  },
+
   input: {
-    backgroundColor: "#1C1C1C",
-    padding: 16,
-    borderRadius: 14,
+    width: "100%",
+    height: 56,
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#242424",
+    borderRadius: 12,
+    paddingHorizontal: 16,
     color: "#fff",
-    marginBottom: 12,
+    fontSize: 15,
+  },
+
+  inputError: {
+    borderColor: "#ff4d4d",
+  },
+
+  passwordContainer: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#242424",
+    borderRadius: 12,
+  },
+
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 16,
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  eyeButton: {
+    width: 50,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  eyeIcon: {
+    width: 20,
+    height: 20,
+    resizeMode: "contain",
+    tintColor: "#888",
+  },
+
+  error: {
+    color: "#ff5c5c",
+    fontSize: 11,
+    marginTop: 7,
+    marginLeft: 3,
+  },
+
+  generalErrorContainer: {
+    backgroundColor: "#1b1010",
+    borderWidth: 1,
+    borderColor: "#3a1b1b",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 18,
+  },
+
+  generalError: {
+    color: "#ff6b6b",
+    fontSize: 12,
+    textAlign: "center",
   },
 
   termsContainer: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 10,
-    marginBottom: 20,
+    marginTop: 2,
+    marginBottom: 5,
   },
 
   checkbox: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#D4AF37",
-    marginRight: 8,
-    borderRadius: 4,
+    borderColor: "#444",
+    backgroundColor: "#141414",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
   },
 
   checkboxActive: {
-    backgroundColor: "#D4AF37",
+    backgroundColor: "#fff",
+    borderColor: "#fff",
+  },
+
+  checkmark: {
+    color: "#000",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   termsText: {
-    color: "#aaa",
+    color: "#777",
     fontSize: 12,
     flex: 1,
   },
 
-  link: {
-    color: "#4DA6FF",
+  linkTerms: {
+    color: "#fff",
+    fontWeight: "700",
   },
 
   button: {
-    backgroundColor: "#D4AF37",
     width: "100%",
-    padding: 16,
-    borderRadius: 14,
+    height: 56,
+    backgroundColor: "#fff",
+    borderRadius: 12,
     alignItems: "center",
-    marginBottom: 20,
+    justifyContent: "center",
+    marginTop: 22,
   },
 
   buttonText: {
-    fontWeight: "bold",
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "800",
   },
 
-  dividerContainer: {
-    flexDirection: "row",
+  footer: {
     alignItems: "center",
-    width: "100%",
-    marginVertical: 20,
-  },
-
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#333",
-  },
-
-  dividerText: {
-    color: "#777",
-    marginHorizontal: 10,
-    fontSize: 12,
-  },
-
-  socialContainer: {
-    flexDirection: "row",
-    gap: 20,
-    marginBottom: 30,
-  },
-
-  socialButton: {
-    backgroundColor: "#1C1C1C",
-    padding: 14,
-    borderRadius: 12,
-    width: 50,
-    height: 50,
-    justifyContent: "center",
-    alignItems: "center",
+    marginTop: 30,
   },
 
   footerText: {
-    color: "#777",
+    color: "#666",
     fontSize: 13,
+    marginBottom: 7,
   },
 
-  icon: {
-    width: 20,
-    height: 20,
-    resizeMode: "contain",
-  },
-
-  error: {
-    color: "#FF4D4D",
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
-  },
-
-  errorCenter: {
-    color: "#FF4D4D",
-    marginBottom: 10,
-    textAlign: "center",
+  loginLink: {
+    color: "#fff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   modalContainer: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.7)",
+    backgroundColor: "rgba(0,0,0,0.82)",
     justifyContent: "center",
     alignItems: "center",
+    padding: 25,
   },
 
   modalBox: {
-    backgroundColor: "#1C1C1C",
-    padding: 25,
-    borderRadius: 16,
-    width: "80%",
-    alignItems: "center",
-  },
-
-  modalTitle: {
-    color: "#D4AF37",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
-
-  modalText: {
-    color: "#fff",
-    marginBottom: 20,
-    textAlign: "center",
-  },
-
-  modalButton: {
-    backgroundColor: "#D4AF37",
-    padding: 12,
-    borderRadius: 10,
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#292929",
+    borderRadius: 20,
+    padding: 28,
     width: "100%",
     alignItems: "center",
   },
 
-  modalButtonText: {
-    fontWeight: "bold",
+  termsModalBox: {
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#292929",
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    maxHeight: "78%",
   },
 
-  inputContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#1C1C1C",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-
-    elevation: 5,
-  },
-
-  inputPassword: {
-    flex: 1,
-    paddingTop: 16,
-    paddingBottom: 16,
-    color: "#fff",
-  },
-
-  iconInput: {
-    width: 22,
-    height: 22,
-    tintColor: "#aaa",
-  },
-
-  linkTerms: {
-    color: "#D4AF37",
-    fontWeight: "bold",
-  },
-
-  termsBox: {
+  successIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
     backgroundColor: "#fff",
-    padding: 20,
-    borderRadius: 10,
-    width: "85%",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
   },
 
-  termsContent: {
-    marginTop: 10,
+  successCheck: {
+    color: "#000",
+    fontSize: 28,
+    fontWeight: "800",
+  },
+
+  modalTitle: {
     color: "#fff",
+    fontSize: 21,
+    fontWeight: "800",
+    marginBottom: 12,
+    textAlign: "center",
+  },
+
+  modalText: {
+    color: "#888",
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 24,
+    textAlign: "center",
+  },
+
+  modalTextLeft: {
+    color: "#aaa",
     fontSize: 14,
+    lineHeight: 22,
+  },
+
+  termsScroll: {
+    marginVertical: 15,
+  },
+
+  modalButton: {
+    backgroundColor: "#fff",
+    height: 52,
+    borderRadius: 11,
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalButtonText: {
+    color: "#000",
+    fontSize: 14,
+    fontWeight: "800",
   },
 });

@@ -1,7 +1,10 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
+  Alert,
   FlatList,
   Image,
   StyleSheet,
@@ -9,6 +12,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+
 import {
   cancelAppointment,
   getAppointments,
@@ -18,462 +22,1026 @@ import {
 export default function Home() {
   const router = useRouter();
 
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const [services, setServices] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [selectedServices, setSelectedServices] = useState<string[]>([]);
+  const [services, setServices] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const checkMessage = async () => {
-      const msg = await AsyncStorage.getItem("cancelMessage");
+  const [selectedServices, setSelectedServices] = useState<any[]>([]);
 
-      if (msg) {
-        alert(msg);
+  useFocusEffect(
+    useCallback(() => {
+      loadData();
+    }, []),
+  );
 
-        await AsyncStorage.removeItem("cancelMessage");
-      }
-    };
-
-    checkMessage();
-  }, []);
-
-  useEffect(() => {
-    const load = async () => {
-      await init();
-    };
-
-    load();
-  }, []);
-  const init = async () => {
-    console.log("🔥 INIT CHAMOU");
+  const loadData = async () => {
     try {
-      const token = await AsyncStorage.getItem("token");
-      const userStorage = await AsyncStorage.getItem("user");
+      setLoading(true);
 
-      console.log("🔥 TOKEN:", token);
-      console.log("🔥 USER STORAGE:", userStorage);
+      const storedUser = await AsyncStorage.getItem("user");
 
-      if (!token) {
+      if (!storedUser) {
         router.replace("/login");
         return;
       }
 
-      if (userStorage) {
-        const parsedUser = JSON.parse(userStorage);
-        setUser(parsedUser);
+      const parsedUser = JSON.parse(storedUser);
 
-        const [servicesData, appointmentsData] = await Promise.all([
-          getServices(),
-          getAppointments(parsedUser.id || parsedUser._id),
-        ]);
-        console.log("🔥 SERVICES API:", servicesData);
+      setUser(parsedUser);
 
-        const safeServices = Array.isArray(servicesData)
-          ? servicesData
-          : servicesData?.services || [];
+      const [servicesData, appointmentsData] = await Promise.all([
+        getServices(),
+        getAppointments(parsedUser.id),
+      ]);
 
-        setServices(safeServices);
-        setAppointments(appointmentsData || []);
-      }
-    } catch (err) {
-      console.log("❌ Erro ao carregar home:", err);
+      setServices(servicesData || []);
+
+      const activeAppointments = (appointmentsData || []).filter(
+        (appointment: any) => appointment.status !== "cancelado",
+      );
+
+      setAppointments(activeAppointments);
+    } catch (error) {
+      console.log("❌ Erro ao carregar home:", error);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    console.log("🔥 SERVICES ATUALIZADO:", services);
-  }, [services]);
-
-  const toggleService = (id: string) => {
-    setSelectedServices((prev) =>
-      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id],
+  const toggleService = (service: any) => {
+    const alreadySelected = selectedServices.some(
+      (selected) => selected._id === service._id,
     );
-  };
 
-  const handleLogout = async () => {
-    await AsyncStorage.removeItem("token");
-    await AsyncStorage.removeItem("user");
-    router.replace("/login");
-  };
+    if (alreadySelected) {
+      setSelectedServices((prev) =>
+        prev.filter((selected) => selected._id !== service._id),
+      );
 
-  if (loading) {
-    return (
-      <View style={styles.container}>
-        <Text style={{ color: "#fff" }}>Carregando...</Text>
-      </View>
-    );
-  }
-
-  const getBarberName = (id: any) => {
-    if (Number(id) === 1) return "Barão";
-    if (Number(id) === 2) return "...";
-    if (Number(id) === 3) return "...";
-    return "Barão";
-  };
-
-  const handleCancel = async (id: string) => {
-    try {
-      await cancelAppointment(id);
-
-      setAppointments((prev) => prev.filter((a: any) => a._id !== id));
-    } catch (err) {
-      console.log("Erro ao cancelar:", err);
+      return;
     }
+
+    setSelectedServices((prev) => [...prev, service]);
+  };
+
+  const handleSchedule = () => {
+    if (selectedServices.length === 0) {
+      Alert.alert(
+        "Selecione um serviço",
+        "Escolha pelo menos um serviço antes de continuar.",
+      );
+
+      return;
+    }
+
+    router.push({
+      pathname: "/schedule",
+      params: {
+        services: JSON.stringify(selectedServices),
+      },
+    });
+  };
+
+  const handleCancel = (appointment: any) => {
+    Alert.alert(
+      "Cancelar agendamento",
+      "Tem certeza que deseja cancelar este agendamento?",
+      [
+        {
+          text: "Voltar",
+          style: "cancel",
+        },
+        {
+          text: "Cancelar",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              await cancelAppointment(appointment._id);
+
+              await loadData();
+
+              Alert.alert(
+                "Agendamento cancelado",
+                "Seu agendamento foi cancelado com sucesso.",
+              );
+            } catch (error) {
+              console.log("❌ Erro ao cancelar:", error);
+
+              Alert.alert("Erro", "Não foi possível cancelar o agendamento.");
+            }
+          },
+        },
+      ],
+    );
   };
 
   const handleReschedule = (appointment: any) => {
     router.push({
       pathname: "/schedule",
       params: {
-        services: JSON.stringify(appointment.services),
         rescheduleId: appointment._id,
+        services: JSON.stringify(appointment.services || []),
       },
     });
   };
 
+  const formatDate = (dateString: string) => {
+    if (!dateString) return "";
+
+    const [year, month, day] = dateString.split("-");
+
+    const date = new Date(Number(year), Number(month) - 1, Number(day));
+
+    const months = [
+      "Jan",
+      "Fev",
+      "Mar",
+      "Abr",
+      "Mai",
+      "Jun",
+      "Jul",
+      "Ago",
+      "Set",
+      "Out",
+      "Nov",
+      "Dez",
+    ];
+
+    return `${day} ${months[date.getMonth()]}`;
+  };
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+
+    if (hour < 12) return "Bom dia";
+    if (hour < 18) return "Boa tarde";
+
+    return "Boa noite";
+  };
+
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Olá, {user?.name || "Cliente"} 👋</Text>
+      {/* HEADER */}
 
-      <Text style={styles.section}>Agendamentos</Text>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.greeting}>{getGreeting()}</Text>
 
-      <View style={styles.appointmentsWrapper}>
-        <FlatList
-          data={appointments}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          keyExtractor={(item: any) => item._id}
-          renderItem={({ item }: any) => (
-            <View style={styles.appointmentCard}>
-              <View style={styles.headerCard}>
-                <Text style={styles.date}>{item.date}</Text>
-                <Text style={styles.time}>{item.time}</Text>
-              </View>
+          <Text style={styles.userName}>{user?.name || "Cliente"} 👋</Text>
+        </View>
 
-              <View style={styles.servicesContainer}>
-                {item.services?.map((s: any, index: number) => (
-                  <Text key={index} style={styles.serviceItem}>
-                    • {s.name}
-                  </Text>
-                ))}
-              </View>
-
-              <View style={styles.footerCard}>
-                <Text style={styles.barber}>
-                  {getBarberName(item.barberId)}
-                </Text>
-              </View>
-
-              <View style={styles.actions}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => handleCancel(item._id)}
-                >
-                  <Text style={styles.cancelText}>Cancelar</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.rescheduleButton}
-                  onPress={() => handleReschedule(item)}
-                >
-                  <Text style={styles.rescheduleText}>Reagendar</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
-        />
+        <TouchableOpacity
+          style={styles.profileButton}
+          onPress={() => router.push("/profile")}
+        >
+          <Text style={styles.profileText}>
+            {user?.name?.charAt(0)?.toUpperCase() || "U"}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <Text style={styles.section}>Lista de serviços</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#FFFFFF" />
+        </View>
+      ) : (
+        <FlatList
+          data={[]}
+          keyExtractor={(_, index) => String(index)}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={styles.content}
+          ListHeaderComponent={
+            <>
+              {/* HERO */}
 
-      <FlatList
-        data={services}
-        numColumns={2}
-        keyExtractor={(item: any) => item._id}
-        columnWrapperStyle={{ justifyContent: "space-between" }}
-        renderItem={({ item }: any) => {
-          const selected = selectedServices.includes(item._id);
+              <View style={styles.hero}>
+                <View style={styles.heroTop}>
+                  <View style={styles.heroIcon}>
+                    <Text style={styles.heroIconText}>✦</Text>
+                  </View>
 
-          return (
-            <TouchableOpacity
-              style={[styles.card, selected && styles.cardSelected]}
-              onPress={() => toggleService(item._id)}
-            >
-              <Text style={styles.cardTitle}>{item.name}</Text>
-              <Text style={styles.cardPrice}>R$ {item.price}</Text>
-            </TouchableOpacity>
-          );
-        }}
-      />
+                  <Text style={styles.heroLabel}>BARÃO BARBER</Text>
+                </View>
 
-      <TouchableOpacity
-        style={styles.button}
-        onPress={() => {
-          const selectedFullServices = services.filter((s: any) =>
-            selectedServices.includes(s._id),
-          );
+                <Text style={styles.heroTitle}>
+                  Seu próximo{"\n"}
+                  visual começa aqui.
+                </Text>
 
-          router.push({
-            pathname: "/schedule",
-            params: {
-              services: JSON.stringify(selectedFullServices),
-            },
-          });
-        }}
-      >
-        <Text style={styles.buttonText}>Agendar Horário</Text>
-      </TouchableOpacity>
+                <Text style={styles.heroDescription}>
+                  Escolha seus serviços e reserve seu horário em poucos
+                  segundos.
+                </Text>
 
-      <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-        <Text style={styles.logoutText}>Sair</Text>
-      </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    styles.primaryButton,
+                    selectedServices.length === 0 &&
+                      styles.primaryButtonDisabled,
+                  ]}
+                  onPress={handleSchedule}
+                >
+                  <Text style={styles.primaryButtonText}>
+                    {selectedServices.length > 0
+                      ? `Agendar horário (${selectedServices.length})`
+                      : "Escolha um serviço"}
+                  </Text>
+
+                  <Text style={styles.primaryArrow}>→</Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* PRÓXIMO AGENDAMENTO */}
+
+              {appointments.length > 0 && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionEyebrow}>SEU HORÁRIO</Text>
+
+                      <Text style={styles.sectionTitle}>
+                        Próximo agendamento
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.appointmentCard}>
+                    <View style={styles.appointmentTop}>
+                      <View>
+                        <Text style={styles.appointmentDateLabel}>DATA</Text>
+
+                        <Text style={styles.appointmentDate}>
+                          {formatDate(appointments[0].date)}
+                        </Text>
+                      </View>
+
+                      <View style={styles.timeBadge}>
+                        <Text style={styles.timeBadgeText}>
+                          {appointments[0].time}
+                        </Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.appointmentDivider} />
+
+                    <View style={styles.appointmentInfo}>
+                      <View style={styles.infoBlock}>
+                        <Text style={styles.infoLabel}>SERVIÇO</Text>
+
+                        <Text style={styles.infoValue}>
+                          {appointments[0].services
+                            ?.map((service: any) => service.name)
+                            .join(", ") || "Serviço"}
+                        </Text>
+                      </View>
+
+                      <View style={styles.infoBlock}>
+                        <Text style={styles.infoLabel}>BARBEIRO</Text>
+
+                        <Text style={styles.infoValue}>Barão</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.appointmentActions}>
+                      <TouchableOpacity
+                        style={styles.secondaryButton}
+                        onPress={() => handleReschedule(appointments[0])}
+                      >
+                        <Text style={styles.secondaryButtonText}>
+                          Reagendar
+                        </Text>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.cancelButton}
+                        onPress={() => handleCancel(appointments[0])}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancelar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* OUTROS AGENDAMENTOS */}
+
+              {appointments.length > 1 && (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeader}>
+                    <View>
+                      <Text style={styles.sectionEyebrow}>AGENDA</Text>
+
+                      <Text style={styles.sectionTitle}>Outros horários</Text>
+                    </View>
+                  </View>
+
+                  <FlatList
+                    horizontal
+                    data={appointments.slice(1)}
+                    keyExtractor={(item) => item._id}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.horizontalList}
+                    renderItem={({ item }) => (
+                      <View style={styles.smallAppointmentCard}>
+                        <Text style={styles.smallDate}>
+                          {formatDate(item.date)}
+                        </Text>
+
+                        <Text style={styles.smallTime}>{item.time}</Text>
+
+                        <Text style={styles.smallService} numberOfLines={1}>
+                          {item.services
+                            ?.map((service: any) => service.name)
+                            .join(", ") || "Serviço"}
+                        </Text>
+
+                        <TouchableOpacity
+                          style={styles.smallButton}
+                          onPress={() => handleReschedule(item)}
+                        >
+                          <Text style={styles.smallButtonText}>Reagendar</Text>
+                        </TouchableOpacity>
+                      </View>
+                    )}
+                  />
+                </View>
+              )}
+
+              {/* SERVIÇOS */}
+
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <View>
+                    <Text style={styles.sectionEyebrow}>EXPERIÊNCIA</Text>
+
+                    <Text style={styles.sectionTitle}>Nossos serviços</Text>
+                  </View>
+
+                  <Text style={styles.selectedCount}>
+                    {selectedServices.length > 0
+                      ? `${selectedServices.length} selecionado${
+                          selectedServices.length > 1 ? "s" : ""
+                        }`
+                      : "Selecione"}
+                  </Text>
+                </View>
+
+                {services.length === 0 ? (
+                  <View style={styles.emptyServices}>
+                    <Text style={styles.emptyServicesText}>
+                      Nenhum serviço disponível.
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.servicesGrid}>
+                    {services.slice(0, 4).map((service) => {
+                      const selected = selectedServices.some(
+                        (item) => item._id === service._id,
+                      );
+
+                      return (
+                        <TouchableOpacity
+                          key={service._id}
+                          style={[
+                            styles.serviceCard,
+                            selected && styles.serviceCardSelected,
+                          ]}
+                          activeOpacity={0.8}
+                          onPress={() => toggleService(service)}
+                        >
+                          <View
+                            style={[
+                              styles.serviceIcon,
+                              selected && styles.serviceIconSelected,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.serviceIconText,
+                                selected && styles.serviceIconTextSelected,
+                              ]}
+                            >
+                              {selected ? "✓" : "✦"}
+                            </Text>
+                          </View>
+
+                          <Text
+                            style={[
+                              styles.serviceName,
+                              selected && styles.serviceNameSelected,
+                            ]}
+                          >
+                            {service.name}
+                          </Text>
+
+                          <Text
+                            style={[
+                              styles.servicePrice,
+                              selected && styles.servicePriceSelected,
+                            ]}
+                          >
+                            R$ {Number(service.price).toFixed(2)}
+                          </Text>
+
+                          {selected && (
+                            <View style={styles.selectedBadge}>
+                              <Text style={styles.selectedBadgeText}>
+                                SELECIONADO
+                              </Text>
+                            </View>
+                          )}
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* BOTÃO DE AGENDAR */}
+
+                {selectedServices.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.servicesScheduleButton}
+                    onPress={handleSchedule}
+                  >
+                    <Text style={styles.servicesScheduleButtonText}>
+                      Continuar com {selectedServices.length} serviço
+                      {selectedServices.length > 1 ? "s" : ""}
+                    </Text>
+
+                    <Text style={styles.servicesScheduleArrow}>→</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {/* CTA */}
+
+              <View style={styles.bottomCta}>
+                <Text style={styles.bottomCtaSmall}>ESTILO É DETALHE</Text>
+
+                <Text style={styles.bottomCtaTitle}>
+                  Pronto para o próximo corte?
+                </Text>
+
+                <TouchableOpacity
+                  style={styles.bottomCtaButton}
+                  onPress={handleSchedule}
+                >
+                  <Text style={styles.bottomCtaButtonText}>
+                    Encontrar um horário
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </>
+          }
+          renderItem={null}
+        />
+      )}
+
+      {/* NAVBAR */}
 
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabItem}
-          onPress={() => router.push("/")}
+          onPress={() => router.push("/home")}
         >
           <Image
             source={require("../assets/images/home.png")}
             style={styles.iconActive}
           />
-        </TouchableOpacity>
 
-        <TouchableOpacity
-          style={styles.tabItem}
-          onPress={() => router.push("/profile")}
-        >
-          <Image
-            source={require("../assets/images/user.png")}
-            style={styles.icon}
-          />
+          <Text style={styles.tabTextActive}>Início</Text>
         </TouchableOpacity>
       </View>
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0D0D0D",
-    padding: 20,
-    paddingBottom: 120,
-    marginTop: 40,
+    backgroundColor: "#0B0B0B",
   },
 
-  title: {
-    color: "#fff",
-    fontSize: 20,
-    fontWeight: "bold",
-    marginBottom: 20,
-  },
-
-  cancelMessage: {
-    color: "red",
-    textAlign: "center",
-    marginVertical: 10,
-    fontWeight: "bold",
-  },
-
-  section: {
-    color: "#aaa",
-    marginBottom: 10,
-    marginTop: 10,
-  },
-
-  appointmentCard: {
-    width: 200,
-    backgroundColor: "#1A1A1A",
-    borderRadius: 16,
-    padding: 15,
-    marginRight: 12,
-  },
-
-  headerCard: {
+  header: {
+    paddingTop: 58,
+    paddingHorizontal: 22,
+    paddingBottom: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 10,
   },
 
-  date: {
-    color: "#aaa",
-    fontSize: 12,
-  },
-
-  time: {
-    color: "#CBA135",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-
-  card: {
-    backgroundColor: "#1C1C1C",
-    width: "48%",
-    padding: 15,
-    borderRadius: 14,
-    marginBottom: 10,
-  },
-
-  cardSelected: {
-    backgroundColor: "#D4AF37",
-  },
-
-  cardTitle: {
-    color: "#fff",
-    fontWeight: "bold",
-  },
-
-  cardPrice: {
-    color: "#ccc",
-    marginTop: 5,
-  },
-
-  servicesContainer: {
-    marginBottom: 10,
-  },
-
-  serviceItem: {
-    color: "#ddd",
+  greeting: {
+    color: "#888",
     fontSize: 13,
     marginBottom: 3,
+    letterSpacing: 0.5,
   },
 
-  footerCard: {
-    borderTopWidth: 1,
-    borderTopColor: "#2A2A2A",
-    paddingTop: 8,
+  userName: {
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "700",
+    letterSpacing: -0.5,
   },
 
-  barber: {
-    color: "#CBA135",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  button: {
-    backgroundColor: "#D4AF37",
-    padding: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginTop: 20,
-  },
-
-  buttonText: {
-    fontWeight: "bold",
-  },
-
-  logoutButton: {
-    marginTop: 10,
-    alignItems: "center",
-  },
-
-  logoutText: {
-    color: "#FF4D4D",
-  },
-
-  tabItem: {
+  profileButton: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  tabItemActive: {
-    width: 25,
-    height: 25,
-    backgroundColor: "#D4AF37",
-    borderRadius: 5,
+  profileText: {
+    color: "#000000",
+    fontSize: 17,
+    fontWeight: "800",
+  },
+
+  content: {
+    paddingHorizontal: 18,
+    paddingBottom: 120,
+  },
+
+  loadingContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  hero: {
+    backgroundColor: "#171717",
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 32,
+    borderWidth: 1,
+    borderColor: "#292929",
+    overflow: "hidden",
+  },
+
+  heroTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 25,
+  },
+
+  heroIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  heroIconText: {
+    color: "#000000",
+    fontSize: 16,
+  },
+
+  heroLabel: {
+    color: "#AAAAAA",
+    fontSize: 11,
+    fontWeight: "700",
+    letterSpacing: 2,
+  },
+
+  heroTitle: {
+    color: "#FFFFFF",
+    fontSize: 32,
+    lineHeight: 36,
+    fontWeight: "800",
+    letterSpacing: -1,
+    marginBottom: 14,
+  },
+
+  heroDescription: {
+    color: "#929292",
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 280,
+    marginBottom: 25,
+  },
+
+  primaryButton: {
+    height: 54,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 15,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  primaryButtonText: {
+    color: "#000000",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  primaryArrow: {
+    color: "#000000",
+    fontSize: 22,
+    fontWeight: "500",
+  },
+
+  section: {
+    marginBottom: 32,
+  },
+
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-end",
+    marginBottom: 15,
+  },
+
+  sectionEyebrow: {
+    color: "#666666",
+    fontSize: 10,
+    fontWeight: "800",
+    letterSpacing: 1.7,
+    marginBottom: 5,
+  },
+
+  sectionTitle: {
+    color: "#FFFFFF",
+    fontSize: 21,
+    fontWeight: "700",
+    letterSpacing: -0.4,
+  },
+
+  seeAll: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  appointmentCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 20,
+  },
+
+  appointmentTop: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  appointmentDateLabel: {
+    color: "#777777",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.5,
+    marginBottom: 5,
+  },
+
+  appointmentDate: {
+    color: "#000000",
+    fontSize: 25,
+    fontWeight: "800",
+  },
+
+  timeBadge: {
+    backgroundColor: "#0B0B0B",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 12,
+  },
+
+  timeBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  appointmentDivider: {
+    height: 1,
+    backgroundColor: "#E5E5E5",
+    marginVertical: 18,
+  },
+
+  appointmentInfo: {
+    flexDirection: "row",
+    marginBottom: 20,
+  },
+
+  infoBlock: {
+    flex: 1,
+  },
+
+  infoLabel: {
+    color: "#999999",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.3,
+    marginBottom: 5,
+  },
+
+  infoValue: {
+    color: "#111111",
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  appointmentActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  secondaryButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#D5D5D5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  secondaryButtonText: {
+    color: "#000000",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  cancelButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#111111",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  cancelButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  horizontalList: {
+    gap: 12,
+  },
+
+  smallAppointmentCard: {
+    width: 190,
+    backgroundColor: "#171717",
+    borderRadius: 18,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: "#292929",
+  },
+
+  smallDate: {
+    color: "#AAAAAA",
+    fontSize: 12,
+    marginBottom: 7,
+  },
+
+  smallTime: {
+    color: "#FFFFFF",
+    fontSize: 25,
+    fontWeight: "800",
+    marginBottom: 7,
+  },
+
+  smallService: {
+    color: "#777777",
+    fontSize: 12,
+    marginBottom: 18,
+  },
+
+  smallButton: {
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  smallButtonText: {
+    color: "#000000",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  servicesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+
+  serviceCard: {
+    width: "48%",
+    minHeight: 155,
+    backgroundColor: "#151515",
+    borderRadius: 18,
+    padding: 17,
+    borderWidth: 1,
+    borderColor: "#292929",
+    justifyContent: "space-between",
+  },
+
+  serviceIcon: {
+    width: 35,
+    height: 35,
+    borderRadius: 18,
+    backgroundColor: "#242424",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  serviceIconText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+  },
+
+  serviceName: {
+    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 15,
+  },
+
+  servicePrice: {
+    color: "#999999",
+    fontSize: 13,
+    marginTop: 7,
+  },
+
+  emptyServices: {
+    padding: 25,
+    borderRadius: 18,
+    backgroundColor: "#151515",
+    alignItems: "center",
+  },
+
+  emptyServicesText: {
+    color: "#777777",
+    fontSize: 13,
+  },
+
+  bottomCta: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 24,
+    marginBottom: 20,
+  },
+
+  bottomCtaSmall: {
+    color: "#777777",
+    fontSize: 9,
+    fontWeight: "800",
+    letterSpacing: 1.7,
+    marginBottom: 8,
+  },
+
+  bottomCtaTitle: {
+    color: "#000000",
+    fontSize: 24,
+    fontWeight: "800",
+    letterSpacing: -0.5,
+    marginBottom: 20,
+  },
+
+  bottomCtaButton: {
+    height: 48,
+    backgroundColor: "#0B0B0B",
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  bottomCtaButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "700",
   },
 
   tabBar: {
     position: "absolute",
-    bottom: 30,
-    alignSelf: "center",
-
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 78,
+    backgroundColor: "#111111",
+    borderTopWidth: 1,
+    borderTopColor: "#252525",
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
-
-    backgroundColor: "#1A1A1A",
-    paddingHorizontal: 25,
-    paddingVertical: 12,
-
-    borderRadius: 20,
-    width: "70%",
-
-    shadowColor: "#000",
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 10,
+    paddingBottom: 8,
   },
 
-  iconPlaceholder: {
-    width: 24,
-    height: 24,
-    backgroundColor: "#555",
-    borderRadius: 6,
+  tabItem: {
+    width: 80,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  icon: {
+    width: 22,
+    height: 22,
+    resizeMode: "contain",
+    opacity: 0.45,
+    marginBottom: 4,
+  },
+
+  iconActive: {
+    width: 22,
+    height: 22,
+    resizeMode: "contain",
     marginBottom: 4,
   },
 
   tabText: {
-    color: "#888",
-    fontSize: 12,
+    color: "#666666",
+    fontSize: 10,
+    fontWeight: "600",
   },
 
   tabTextActive: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+  },
+
+  primaryButtonDisabled: {
+    opacity: 0.5,
+  },
+
+  selectedCount: {
+    color: "#fff",
+    fontSize: 13,
+    marginTop: 4,
+    fontWeight: "600",
+  },
+
+  serviceCardSelected: {
+    backgroundColor: "#fff",
+    borderWidth: 1,
+    borderColor: "#fff",
+  },
+
+  serviceIconSelected: {
+    backgroundColor: "#000",
+  },
+
+  serviceIconTextSelected: {
+    color: "#fff",
+  },
+
+  serviceNameSelected: {
+    color: "#000",
+  },
+
+  servicePriceSelected: {
+    color: "#333",
+  },
+
+  selectedBadge: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    backgroundColor: "#000",
+    borderRadius: 20,
+    minWidth: 22,
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  selectedBadgeText: {
     color: "#fff",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "bold",
   },
 
-  icon: {
-    width: 25,
-    height: 25,
-    tintColor: "#B0B0B0",
-  },
-  iconActive: {
-    width: 25,
-    height: 25,
-    tintColor: "#D4AF37",
-  },
-
-  actions: {
+  servicesScheduleButton: {
+    marginTop: 18,
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
-    marginTop: 30,
   },
 
-  cancelButton: {
-    borderWidth: 1,
-    borderColor: "#D4AF37",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-
-  cancelText: {
-    color: "#D4AF37",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  rescheduleButton: {
-    backgroundColor: "#D4AF37",
-    paddingVertical: 6,
-    paddingHorizontal: 14,
-    borderRadius: 8,
-  },
-
-  rescheduleText: {
+  servicesScheduleButtonText: {
     color: "#000",
-    fontSize: 12,
-    fontWeight: "600",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
-  appointmentsWrapper: {
-    height: 250,
+  servicesScheduleArrow: {
+    color: "#000",
+    fontSize: 22,
+    fontWeight: "600",
   },
 });

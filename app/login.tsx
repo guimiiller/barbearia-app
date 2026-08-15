@@ -50,22 +50,17 @@ export default function Login() {
     if (hasError) return;
 
     try {
-      const res = await loginUser({ email, password });
-
-      console.log("🔥 LOGIN RESPONSE:", res);
+      const res = await loginUser({
+        email,
+        password,
+      });
 
       await AsyncStorage.setItem("token", res.token);
       await AsyncStorage.setItem("user", JSON.stringify(res.user));
 
-      const checkUser = await AsyncStorage.getItem("user");
-      console.log("🔥 USER SALVO AGORA:", checkUser);
-
-      // 🔥 AQUI É O QUE FALTAVA
       if (res.user.role === "admin") {
-        console.log("🔥 REDIRECIONANDO PARA ADMIN");
         router.replace("/admin");
       } else {
-        console.log("🔥 REDIRECIONANDO PARA HOME");
         router.replace("/home");
       }
     } catch (err: any) {
@@ -77,66 +72,135 @@ export default function Login() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.logo}>Logo Barão</Text>
+      {/* VOLTAR */}
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.backIcon}>‹</Text>
+      </TouchableOpacity>
 
-      <View style={styles.inputs}>
-        <TextInput
-          placeholder="E-mail"
-          placeholderTextColor="#777"
-          style={styles.input}
-          value={email}
-          onChangeText={(text) => {
-            setEmail(text);
-            setErrorEmail("");
-            setErrorGeneral("");
-          }}
-        />
-        {errorEmail ? <Text style={styles.error}>{errorEmail}</Text> : null}
+      {/* HEADER */}
+      <View style={styles.header}>
+        <View style={styles.brand}>
+          <Text style={styles.brandTitle}>BARÃO</Text>
 
-        <View style={styles.inputContainer}>
+          <View style={styles.brandLine} />
+
+          <Text style={styles.brandSubtitle}>BARBEARIA</Text>
+        </View>
+
+        <Text style={styles.title}>Bem-vindo de volta.</Text>
+
+        <Text style={styles.subtitle}>Entre na sua conta para continuar.</Text>
+      </View>
+
+      {/* FORM */}
+      <View style={styles.form}>
+        {/* EMAIL */}
+        <View style={styles.field}>
+          <Text style={styles.label}>E-MAIL</Text>
+
           <TextInput
-            placeholder="Senha"
-            placeholderTextColor="#777"
-            secureTextEntry={!showPassword}
-            style={styles.inputPassword}
-            value={password}
+            placeholder="seu@email.com"
+            placeholderTextColor="#666"
+            style={[styles.input, errorEmail ? styles.inputError : null]}
+            value={email}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
             onChangeText={(text) => {
-              setPassword(text);
-              setErrorPassword("");
+              setEmail(text);
+              setErrorEmail("");
+              setErrorGeneral("");
             }}
           />
 
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-            <Image
-              source={
-                showPassword
-                  ? require("../assets/images/eye-off.png")
-                  : require("../assets/images/eye.png")
-              }
-              style={styles.icon}
-            />
-          </TouchableOpacity>
+          {errorEmail ? <Text style={styles.error}>{errorEmail}</Text> : null}
         </View>
 
-        {errorPassword ? (
-          <Text style={styles.error}>{errorPassword}</Text>
+        {/* SENHA */}
+        <View style={styles.field}>
+          <View style={styles.passwordHeader}>
+            <Text style={styles.label}>SENHA</Text>
+
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => router.push("/")}
+            >
+              <Text style={styles.forgotPassword}>Esqueceu a senha?</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View
+            style={[
+              styles.passwordContainer,
+              errorPassword ? styles.inputError : null,
+            ]}
+          >
+            <TextInput
+              placeholder="Digite sua senha"
+              placeholderTextColor="#666"
+              secureTextEntry={!showPassword}
+              style={styles.passwordInput}
+              value={password}
+              autoCapitalize="none"
+              onChangeText={(text) => {
+                setPassword(text);
+                setErrorPassword("");
+                setErrorGeneral("");
+              }}
+            />
+
+            <TouchableOpacity
+              onPress={() => setShowPassword(!showPassword)}
+              activeOpacity={0.7}
+              style={styles.eyeButton}
+            >
+              <Image
+                source={
+                  showPassword
+                    ? require("../assets/images/eye-off.png")
+                    : require("../assets/images/eye.png")
+                }
+                style={styles.eyeIcon}
+              />
+            </TouchableOpacity>
+          </View>
+
+          {errorPassword ? (
+            <Text style={styles.error}>{errorPassword}</Text>
+          ) : null}
+        </View>
+
+        {/* ERRO GERAL */}
+        {errorGeneral ? (
+          <View style={styles.generalErrorContainer}>
+            <Text style={styles.generalError}>{errorGeneral}</Text>
+          </View>
         ) : null}
+
+        {/* LOGIN */}
+        <TouchableOpacity
+          style={styles.loginButton}
+          onPress={handleLogin}
+          activeOpacity={0.85}
+        >
+          <Text style={styles.loginButtonText}>Entrar</Text>
+        </TouchableOpacity>
       </View>
 
-      {errorGeneral ? (
-        <Text style={styles.errorCenter}>{errorGeneral}</Text>
-      ) : null}
+      {/* FOOTER */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>Ainda não tem uma conta?</Text>
 
-      <TouchableOpacity style={styles.button} onPress={handleLogin}>
-        <Text style={styles.buttonText}>Login</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.footerText}>
-        Ainda não tem uma conta?{" "}
-        <Link href="/cadastro" style={styles.link}>
-          Cadastre-se
+        <Link href="/cadastro" asChild>
+          <TouchableOpacity activeOpacity={0.7}>
+            <Text style={styles.registerLink}>Criar minha conta</Text>
+          </TouchableOpacity>
         </Link>
-      </Text>
+      </View>
     </View>
   );
 }
@@ -144,130 +208,209 @@ export default function Login() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#0D0D0D",
+    backgroundColor: "#080808",
+    paddingHorizontal: 28,
+    paddingTop: 65,
+    paddingBottom: 40,
+  },
+
+  backButton: {
+    position: "absolute",
+    top: 58,
+    left: 24,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#151515",
     alignItems: "center",
     justifyContent: "center",
-    padding: 20,
+    zIndex: 10,
   },
 
-  logo: {
+  backIcon: {
     color: "#fff",
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 40,
+    fontSize: 34,
+    fontWeight: "300",
+    lineHeight: 34,
+    marginTop: -3,
   },
 
-  inputs: {
+  header: {
+    alignItems: "center",
+    marginTop: 25,
+    marginBottom: 48,
+  },
+
+  brand: {
+    alignItems: "center",
+    marginBottom: 42,
+  },
+
+  brandTitle: {
+    color: "#fff",
+    fontSize: 27,
+    fontWeight: "900",
+    letterSpacing: 6,
+  },
+
+  brandLine: {
+    width: 30,
+    height: 2,
+    backgroundColor: "#fff",
+    marginTop: 7,
+    marginBottom: 5,
+  },
+
+  brandSubtitle: {
+    color: "#888",
+    fontSize: 8,
+    fontWeight: "600",
+    letterSpacing: 3,
+  },
+
+  title: {
+    color: "#fff",
+    fontSize: 30,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  subtitle: {
+    color: "#888",
+    fontSize: 14,
+    marginTop: 10,
+    textAlign: "center",
+  },
+
+  form: {
     width: "100%",
+  },
+
+  field: {
+    marginBottom: 24,
+  },
+
+  label: {
+    color: "#aaa",
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.5,
+    marginBottom: 9,
   },
 
   input: {
-    backgroundColor: "#1C1C1C",
-    borderRadius: 14,
-    color: "#fff",
-    marginBottom: 10,
-    padding: 16,
-  },
-
-  error: {
-    color: "#FF4D4D",
-    fontSize: 12,
-    marginBottom: 10,
-    marginLeft: 5,
-  },
-
-  errorCenter: {
-    color: "#FF4D4D",
-    marginBottom: 10,
-  },
-
-  button: {
-    backgroundColor: "#D4AF37",
     width: "100%",
-    padding: 16,
-    borderRadius: 14,
-    alignItems: "center",
-    marginBottom: 20,
-    marginTop: 10,
-  },
-
-  buttonText: {
-    fontWeight: "bold",
-  },
-
-  dividerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    width: "100%",
-    marginVertical: 20,
-  },
-
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: "#333",
-  },
-
-  dividerText: {
-    color: "#777",
-    marginHorizontal: 10,
-    fontSize: 12,
-  },
-
-  socialContainer: {
-    flexDirection: "row",
-    gap: 20,
-    marginBottom: 30,
-  },
-
-  socialButton: {
-    backgroundColor: "#1C1C1C",
-    padding: 14,
+    height: 56,
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#242424",
     borderRadius: 12,
-    justifyContent: "center",
+    paddingHorizontal: 16,
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  inputError: {
+    borderColor: "#ff4d4d",
+  },
+
+  passwordHeader: {
+    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 9,
   },
 
-  footerText: {
-    color: "#777",
-    fontSize: 13,
+  forgotPassword: {
+    color: "#aaa",
+    fontSize: 11,
   },
 
-  link: {
-    color: "#4DA6FF",
+  passwordContainer: {
+    height: 56,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#141414",
+    borderWidth: 1,
+    borderColor: "#242424",
+    borderRadius: 12,
   },
 
-  icon: {
+  passwordInput: {
+    flex: 1,
+    height: "100%",
+    paddingHorizontal: 16,
+    color: "#fff",
+    fontSize: 15,
+  },
+
+  eyeButton: {
+    width: 50,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  eyeIcon: {
     width: 20,
     height: 20,
     resizeMode: "contain",
+    tintColor: "#888",
   },
 
-  inputContainer: {
-    flexDirection: "row",
+  error: {
+    color: "#ff5c5c",
+    fontSize: 11,
+    marginTop: 7,
+    marginLeft: 3,
+  },
+
+  generalErrorContainer: {
+    backgroundColor: "#1b1010",
+    borderWidth: 1,
+    borderColor: "#3a1b1b",
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 18,
+  },
+
+  generalError: {
+    color: "#ff6b6b",
+    fontSize: 12,
+    textAlign: "center",
+  },
+
+  loginButton: {
+    width: "100%",
+    height: 56,
+    backgroundColor: "#fff",
+    borderRadius: 12,
     alignItems: "center",
-    backgroundColor: "#1C1C1C",
-    borderRadius: 14,
-    paddingHorizontal: 10,
-    marginBottom: 12,
-
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 6,
-
-    elevation: 5,
+    justifyContent: "center",
+    marginTop: 4,
   },
 
-  inputPassword: {
-    flex: 1,
+  loginButtonText: {
+    color: "#000",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  footer: {
+    alignItems: "center",
+    marginTop: "auto",
+    paddingTop: 30,
+  },
+
+  footerText: {
+    color: "#666",
+    fontSize: 13,
+    marginBottom: 7,
+  },
+
+  registerLink: {
     color: "#fff",
-    paddingVertical: 16,
-  },
-
-  iconInput: {
-    width: 22,
-    height: 22,
-    tintColor: "#aaa",
+    fontSize: 14,
+    fontWeight: "700",
   },
 });
