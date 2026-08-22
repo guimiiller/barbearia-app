@@ -1,3 +1,4 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -20,16 +21,27 @@ import { getSchedule, saveSchedule } from "../src/services/api";
 export default function ScheduleAdmin() {
   const router = useRouter();
 
+  const [admin, setAdmin] = useState<any>(null);
+
+  const [barberId, setBarberId] = useState<number | null>(null);
+
   const [selectedDate, setSelectedDate] = useState("");
+
   const [days, setDays] = useState<any[]>([]);
+
   const [slots, setSlots] = useState<string[]>([]);
+
   const [newTime, setNewTime] = useState("");
+
   const [loading, setLoading] = useState(false);
+
   const [saving, setSaving] = useState(false);
 
   const formatDate = (date: Date) => {
     const year = date.getFullYear();
+
     const month = String(date.getMonth() + 1).padStart(2, "0");
+
     const day = String(date.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
@@ -58,7 +70,9 @@ export default function ScheduleAdmin() {
 
       nextDays.push({
         fullDate: formatted,
+
         day: weekday,
+
         date: date.getDate(),
       });
     }
@@ -67,28 +81,79 @@ export default function ScheduleAdmin() {
   };
 
   useEffect(() => {
-    const generatedDays = generateDays();
+    const initialize = async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem("user");
 
-    setDays(generatedDays);
+        if (!storedUser) {
+          router.replace("/login");
 
-    if (generatedDays.length > 0) {
-      setSelectedDate(generatedDays[0].fullDate);
-    }
+          return;
+        }
+
+        const parsedUser = JSON.parse(storedUser);
+
+        console.log("👑 ADMIN LOGADO:", parsedUser);
+
+        if (parsedUser.role !== "admin") {
+          router.replace("/home");
+
+          return;
+        }
+
+        if (!parsedUser.barberId) {
+          Alert.alert(
+            "Conta não configurada",
+            "Esta conta administrativa ainda não possui um barbeiro vinculado.",
+          );
+
+          return;
+        }
+
+        setAdmin(parsedUser);
+
+        setBarberId(Number(parsedUser.barberId));
+
+        const generatedDays = generateDays();
+
+        setDays(generatedDays);
+
+        if (generatedDays.length > 0) {
+          setSelectedDate(generatedDays[0].fullDate);
+        }
+      } catch (error) {
+        console.log("❌ ERRO AO INICIALIZAR AGENDA:", error);
+
+        Alert.alert("Erro", "Não foi possível carregar os dados do barbeiro.");
+      }
+    };
+
+    initialize();
   }, []);
 
   useFocusEffect(
     useCallback(() => {
-      if (!selectedDate) return;
+      if (!selectedDate || !barberId) {
+        return;
+      }
 
-      loadSchedule(selectedDate);
-    }, [selectedDate]),
+      loadSchedule(selectedDate, barberId);
+    }, [selectedDate, barberId]),
   );
 
-  const loadSchedule = async (date: string) => {
+  const loadSchedule = async (date: string, currentBarberId: number) => {
     try {
       setLoading(true);
 
-      const data = await getSchedule(date);
+      console.log("💈 BUSCANDO AGENDA:", {
+        barberId: currentBarberId,
+
+        date,
+      });
+
+      const data = await getSchedule(date, currentBarberId);
+
+      console.log("🕒 HORÁRIOS RECEBIDOS:", data);
 
       const loadedSlots: string[] =
         data?.slots
@@ -98,7 +163,7 @@ export default function ScheduleAdmin() {
 
       setSlots([...new Set<string>(loadedSlots)]);
     } catch (error) {
-      console.log("❌ Erro ao carregar horários:", error);
+      console.log("❌ ERRO AO CARREGAR HORÁRIOS:", error);
 
       setSlots([]);
     } finally {
@@ -106,11 +171,30 @@ export default function ScheduleAdmin() {
     }
   };
 
+  const isPastTime = (date: string, time: string) => {
+    const now = new Date();
+
+    const today = formatDate(now);
+
+    if (date !== today) {
+      return false;
+    }
+
+    const [hours, minutes] = time.split(":").map(Number);
+
+    const slotMinutes = hours * 60 + minutes;
+
+    const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+    return slotMinutes <= currentMinutes;
+  };
+
   const addTime = () => {
     const time = newTime.trim();
 
     if (!time) {
       Alert.alert("Atenção", "Digite um horário.");
+
       return;
     }
 
@@ -119,6 +203,7 @@ export default function ScheduleAdmin() {
         "Horário inválido",
         "Digite o horário no formato HH:MM. Exemplo: 14:00",
       );
+
       return;
     }
 
@@ -126,15 +211,21 @@ export default function ScheduleAdmin() {
 
     if (hours > 23 || minutes > 59) {
       Alert.alert("Horário inválido", "Digite um horário válido.");
+
       return;
     }
 
-    const normalizedTime = `${String(hours).padStart(2, "0")}:${String(
-      minutes,
-    ).padStart(2, "0")}`;
+    const normalizedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+
+    if (isPastTime(selectedDate, normalizedTime)) {
+      Alert.alert("Horário inválido", "Esse horário já passou.");
+
+      return;
+    }
 
     if (slots.includes(normalizedTime)) {
       Alert.alert("Horário já cadastrado", "Esse horário já está disponível.");
+
       return;
     }
 
@@ -149,11 +240,15 @@ export default function ScheduleAdmin() {
     Alert.alert("Remover horário", `Deseja remover o horário ${time}?`, [
       {
         text: "Cancelar",
+
         style: "cancel",
       },
+
       {
         text: "Remover",
+
         style: "destructive",
+
         onPress: () => {
           setSlots((currentSlots) =>
             currentSlots.filter((slot) => slot !== time),
@@ -166,50 +261,74 @@ export default function ScheduleAdmin() {
   const save = async () => {
     if (!selectedDate) {
       Alert.alert("Erro", "Selecione uma data.");
+
+      return;
+    }
+
+    if (!barberId) {
+      Alert.alert("Erro", "Não foi possível identificar o barbeiro.");
+
       return;
     }
 
     try {
       setSaving(true);
 
-      const normalizedSlots = slots
+      const validSlots = slots.filter(
+        (time) => !isPastTime(selectedDate, time),
+      );
+
+      const normalizedSlots = validSlots
         .filter(Boolean)
         .sort()
         .map((time) => ({
           time,
         }));
 
-      await saveSchedule({
+      console.log("💾 SALVANDO AGENDA:", {
+        barberId,
+
         date: selectedDate,
+
         slots: normalizedSlots,
       });
 
-      await loadSchedule(selectedDate);
+      await saveSchedule({
+        barberId,
 
-      Alert.alert(
-        "Horários salvos",
-        "A agenda deste dia foi atualizada com sucesso.",
-      );
-    } catch (error) {
-      console.log("❌ ERRO AO SALVAR:", error);
+        date: selectedDate,
 
-      Alert.alert(
-        "Erro",
-        "Não foi possível salvar os horários. Tente novamente.",
-      );
+        slots: normalizedSlots,
+      });
+
+      await loadSchedule(selectedDate, barberId);
+
+      Alert.alert("Horários salvos", "Sua agenda foi atualizada com sucesso.");
+    } catch (error: any) {
+      console.log("❌ ERRO AO SALVAR:", error?.response?.data || error);
+
+      const message =
+        error?.response?.data?.error ||
+        "Não foi possível salvar os horários. Tente novamente.";
+
+      Alert.alert("Erro", message);
     } finally {
       setSaving(false);
     }
   };
 
   const formatSelectedDate = () => {
-    if (!selectedDate) return "";
+    if (!selectedDate) {
+      return "";
+    }
 
     const date = new Date(`${selectedDate}T00:00:00`);
 
     return date.toLocaleDateString("pt-BR", {
       weekday: "long",
+
       day: "2-digit",
+
       month: "long",
     });
   };
@@ -220,8 +339,6 @@ export default function ScheduleAdmin() {
         style={styles.flex}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        {/* HEADER */}
-
         <View style={styles.header}>
           <View>
             <Text style={styles.eyebrow}>PAINEL ADMINISTRATIVO</Text>
@@ -229,7 +346,9 @@ export default function ScheduleAdmin() {
             <Text style={styles.title}>Agenda</Text>
 
             <Text style={styles.subtitle}>
-              Controle os horários disponíveis
+              {admin?.name
+                ? `Horários de ${admin.name}`
+                : "Controle os horários disponíveis"}
             </Text>
           </View>
 
@@ -241,6 +360,10 @@ export default function ScheduleAdmin() {
           </View>
         </View>
 
+        {/* =================================================
+            CONTEÚDO
+        ================================================= */}
+
         <FlatList
           data={[]}
           keyExtractor={(_, index) => String(index)}
@@ -248,7 +371,9 @@ export default function ScheduleAdmin() {
           contentContainerStyle={styles.content}
           ListHeaderComponent={
             <>
-              {/* DATA */}
+              {/* =============================================
+                  DATA
+              ============================================= */}
 
               <View style={styles.sectionHeader}>
                 <View>
@@ -257,6 +382,10 @@ export default function ScheduleAdmin() {
                   <Text style={styles.sectionTitle}>Escolha o dia</Text>
                 </View>
               </View>
+
+              {/* =============================================
+                  DIAS
+              ============================================= */}
 
               <FlatList
                 horizontal
@@ -272,16 +401,19 @@ export default function ScheduleAdmin() {
                       activeOpacity={0.8}
                       style={[
                         styles.dateCard,
+
                         selected && styles.dateCardSelected,
                       ]}
                       onPress={() => {
                         setSelectedDate(item.fullDate);
+
                         setNewTime("");
                       }}
                     >
                       <Text
                         style={[
                           styles.dateDay,
+
                           selected && styles.dateDaySelected,
                         ]}
                       >
@@ -291,6 +423,7 @@ export default function ScheduleAdmin() {
                       <Text
                         style={[
                           styles.dateNumber,
+
                           selected && styles.dateNumberSelected,
                         ]}
                       >
@@ -301,7 +434,9 @@ export default function ScheduleAdmin() {
                 }}
               />
 
-              {/* DATA SELECIONADA */}
+              {/* =============================================
+                  DATA SELECIONADA
+              ============================================= */}
 
               <View style={styles.selectedDateCard}>
                 <View style={styles.selectedDateIcon}>
@@ -320,7 +455,33 @@ export default function ScheduleAdmin() {
                 </View>
               </View>
 
-              {/* ADICIONAR HORÁRIO */}
+              {/* =============================================
+                  BARBEIRO
+              ============================================= */}
+
+              <View style={styles.barberInfoCard}>
+                <View style={styles.barberAvatar}>
+                  <Text style={styles.barberAvatarText}>
+                    {admin?.name?.charAt(0)?.toUpperCase() || "B"}
+                  </Text>
+                </View>
+
+                <View style={styles.barberInfo}>
+                  <Text style={styles.barberInfoLabel}>AGENDA DE</Text>
+
+                  <Text style={styles.barberInfoName}>
+                    {admin?.name || "Barbeiro"}
+                  </Text>
+                </View>
+
+                <View style={styles.barberIdBadge}>
+                  <Text style={styles.barberIdText}>#{barberId || "-"}</Text>
+                </View>
+              </View>
+
+              {/* =============================================
+                  ADICIONAR HORÁRIO
+              ============================================= */}
 
               <View style={styles.sectionHeader}>
                 <View>
@@ -356,7 +517,9 @@ export default function ScheduleAdmin() {
                 </TouchableOpacity>
               </View>
 
-              {/* HORÁRIOS */}
+              {/* =============================================
+                  HORÁRIOS
+              ============================================= */}
 
               <View style={styles.scheduleHeader}>
                 <View>
@@ -370,6 +533,10 @@ export default function ScheduleAdmin() {
                   </Text>
                 </View>
               </View>
+
+              {/* =============================================
+                  LOADING
+              ============================================= */}
 
               {loading ? (
                 <View style={styles.loadingContainer}>
@@ -388,7 +555,7 @@ export default function ScheduleAdmin() {
                   </Text>
 
                   <Text style={styles.emptyDescription}>
-                    Adicione os horários em que a barbearia estará disponível.
+                    Adicione os horários em que você estará disponível.
                   </Text>
                 </View>
               ) : (
@@ -412,7 +579,9 @@ export default function ScheduleAdmin() {
                 </View>
               )}
 
-              {/* SALVAR */}
+              {/* =============================================
+                  SALVAR
+              ============================================= */}
 
               <TouchableOpacity
                 activeOpacity={0.85}
@@ -437,13 +606,15 @@ export default function ScheduleAdmin() {
           renderItem={null}
         />
 
-        {/* NAVBAR */}
+        {/* =================================================
+            NAVBAR
+        ================================================= */}
 
         <View style={styles.tabBar}>
           <TouchableOpacity
             style={styles.tabItem}
             activeOpacity={0.7}
-            onPress={() => router.push("/")}
+            onPress={() => router.push("/admin")}
           >
             <Image
               source={require("../assets/images/home.png")}
@@ -496,10 +667,8 @@ const styles = StyleSheet.create({
 
   content: {
     paddingHorizontal: 20,
-    paddingBottom: 30,
+    paddingBottom: 110,
   },
-
-  /* HEADER */
 
   header: {
     paddingTop: 58,
@@ -548,8 +717,6 @@ const styles = StyleSheet.create({
     tintColor: "#FFFFFF",
   },
 
-  /* SECTIONS */
-
   sectionHeader: {
     marginTop: 5,
     marginBottom: 15,
@@ -568,8 +735,6 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: "700",
   },
-
-  /* DAYS */
 
   daysList: {
     paddingRight: 10,
@@ -614,8 +779,6 @@ const styles = StyleSheet.create({
     color: "#000000",
   },
 
-  /* SELECTED DATE */
-
   selectedDateCard: {
     backgroundColor: "#151515",
     borderRadius: 18,
@@ -624,7 +787,7 @@ const styles = StyleSheet.create({
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 28,
+    marginBottom: 15,
   },
 
   selectedDateIcon: {
@@ -662,7 +825,63 @@ const styles = StyleSheet.create({
     textTransform: "capitalize",
   },
 
-  /* ADD TIME */
+  barberInfoCard: {
+    backgroundColor: "#111111",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#242424",
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 28,
+  },
+
+  barberAvatar: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  barberAvatarText: {
+    color: "#000000",
+    fontSize: 16,
+    fontWeight: "800",
+  },
+
+  barberInfo: {
+    flex: 1,
+  },
+
+  barberInfoLabel: {
+    color: "#555",
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 1.4,
+    marginBottom: 3,
+  },
+
+  barberInfoName: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  barberIdBadge: {
+    backgroundColor: "#202020",
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+
+  barberIdText: {
+    color: "#888",
+    fontSize: 11,
+    fontWeight: "700",
+  },
 
   addTimeContainer: {
     flexDirection: "row",
@@ -720,8 +939,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  /* SCHEDULE */
-
   scheduleHeader: {
     marginBottom: 15,
   },
@@ -771,8 +988,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  /* LOADING */
-
   loadingContainer: {
     alignItems: "center",
     justifyContent: "center",
@@ -784,8 +999,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 10,
   },
-
-  /* EMPTY */
 
   emptyCard: {
     backgroundColor: "#151515",
@@ -826,8 +1039,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* SAVE */
-
   saveButton: {
     height: 58,
     backgroundColor: "#FFFFFF",
@@ -858,8 +1069,6 @@ const styles = StyleSheet.create({
   bottomSpace: {
     height: 30,
   },
-
-  /* NAVBAR */
 
   tabBar: {
     position: "absolute",

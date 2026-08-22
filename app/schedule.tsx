@@ -34,13 +34,15 @@ export default function Schedule() {
       id: 1,
       name: "Barão",
     },
+
     {
       id: 2,
-      name: "...",
+      name: "Kauan",
     },
+
     {
       id: 3,
-      name: "...",
+      name: "Mario",
     },
   ];
 
@@ -105,24 +107,31 @@ export default function Schedule() {
     const loadSchedule = async () => {
       try {
         setLoadingTimes(true);
+
         setSelectedTime(null);
 
-        console.log("📅 CLIENTE BUSCANDO HORÁRIOS:", selectedDate);
+        console.log("📅 CLIENTE BUSCANDO HORÁRIOS:", {
+          date: selectedDate,
+          barberId: selectedBarber,
+        });
 
-        const data = await getSchedule(selectedDate);
+        const data = await getSchedule(selectedDate, selectedBarber);
 
         const horarios =
           data?.slots?.map((slot: any) => slot.time).filter(Boolean) || [];
 
         const uniqueSorted = [...new Set(horarios as string[])].sort();
 
-        console.log("🕒 HORÁRIOS DO DIA:", selectedDate, uniqueSorted);
+        console.log("💈 BARBEIRO:", selectedBarber);
+
+        console.log("🕒 HORÁRIOS:", uniqueSorted);
 
         setTimes(uniqueSorted);
       } catch (err) {
         console.log("❌ Erro ao carregar horários:", err);
 
         setTimes([]);
+
         setSelectedTime(null);
       } finally {
         setLoadingTimes(false);
@@ -132,7 +141,7 @@ export default function Schedule() {
     if (selectedDate) {
       loadSchedule();
     }
-  }, [selectedDate]);
+  }, [selectedDate, selectedBarber]);
 
   const availableTimes = times.filter((time) => {
     return !appointments.some((appointment) => {

@@ -1,5 +1,8 @@
 import { useRouter } from "expo-router";
+import { useEffect, useRef } from "react";
 import {
+  Animated,
+  Easing,
   ImageBackground,
   StyleSheet,
   Text,
@@ -10,6 +13,77 @@ import {
 export default function Landing() {
   const router = useRouter();
 
+  const brandOpacity = useRef(new Animated.Value(0)).current;
+  const brandTranslateY = useRef(new Animated.Value(-20)).current;
+
+  const heroOpacity = useRef(new Animated.Value(0)).current;
+  const heroTranslateY = useRef(new Animated.Value(25)).current;
+
+  const descriptionOpacity = useRef(new Animated.Value(0)).current;
+
+  const buttonsOpacity = useRef(new Animated.Value(0)).current;
+
+  const buttonsTranslateY = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.timing(brandOpacity, {
+          toValue: 1,
+          duration: 700,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(brandTranslateY, {
+          toValue: 0,
+          duration: 700,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.timing(heroOpacity, {
+          toValue: 1,
+          duration: 650,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(heroTranslateY, {
+          toValue: 0,
+          duration: 650,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.timing(descriptionOpacity, {
+        toValue: 1,
+        duration: 500,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }),
+
+      Animated.parallel([
+        Animated.timing(buttonsOpacity, {
+          toValue: 1,
+          duration: 600,
+          easing: Easing.out(Easing.ease),
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(buttonsTranslateY, {
+          toValue: 0,
+          duration: 600,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
   return (
     <ImageBackground
       source={require("../assets/images/background-hero.png")}
@@ -19,25 +93,79 @@ export default function Landing() {
       <View style={styles.overlay} />
 
       <View style={styles.content}>
-        {/* MARCA */}
-        <View style={styles.brand}>
+        {/* =====================================
+            MARCA
+        ===================================== */}
+
+        <Animated.View
+          style={[
+            styles.brand,
+            {
+              opacity: brandOpacity,
+              transform: [
+                {
+                  translateY: brandTranslateY,
+                },
+              ],
+            },
+          ]}
+        >
           <Text style={styles.brandTitle}>BARÃO</Text>
+
           <View style={styles.brandLine} />
+
           <Text style={styles.brandSubtitle}>BARBEARIA</Text>
-        </View>
+        </Animated.View>
 
-        {/* TEXTO */}
+        {/* =====================================
+            TEXTO
+        ===================================== */}
+
         <View style={styles.heroText}>
-          <Text style={styles.title}>Seu estilo.</Text>
-          <Text style={styles.titleStrong}>Seu momento.</Text>
+          <Animated.View
+            style={{
+              opacity: heroOpacity,
+              transform: [
+                {
+                  translateY: heroTranslateY,
+                },
+              ],
+            }}
+          >
+            <Text style={styles.title}>Seu estilo.</Text>
 
-          <Text style={styles.description}>
+            <Text style={styles.titleStrong}>Seu momento.</Text>
+          </Animated.View>
+
+          <Animated.Text
+            style={[
+              styles.description,
+              {
+                opacity: descriptionOpacity,
+              },
+            ]}
+          >
             Agende seu horário e viva a experiência Barão.
-          </Text>
+          </Animated.Text>
         </View>
 
-        {/* BOTÕES */}
-        <View style={styles.buttons}>
+        {/* =====================================
+            BOTÕES
+        ===================================== */}
+
+        <Animated.View
+          style={[
+            styles.buttons,
+            {
+              opacity: buttonsOpacity,
+              transform: [
+                {
+                  translateY: buttonsTranslateY,
+                },
+              ],
+            },
+          ]}
+        >
           <TouchableOpacity
             activeOpacity={0.85}
             style={styles.loginButton}
@@ -53,7 +181,7 @@ export default function Landing() {
           >
             <Text style={styles.registerText}>Criar minha conta</Text>
           </TouchableOpacity>
-        </View>
+        </Animated.View>
       </View>
     </ImageBackground>
   );
@@ -114,6 +242,8 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: "300",
     lineHeight: 44,
+
+    textAlign: "center",
   },
 
   titleStrong: {

@@ -1,6 +1,7 @@
 import { Link, useRouter } from "expo-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  Animated,
   Image,
   Modal,
   ScrollView,
@@ -36,6 +37,91 @@ export default function Register() {
   const [errorTerms, setErrorTerms] = useState("");
   const [errorGeneral, setErrorGeneral] = useState("");
 
+  const screenOpacity = useRef(new Animated.Value(0)).current;
+
+  const brandTranslate = useRef(new Animated.Value(25)).current;
+  const titleTranslate = useRef(new Animated.Value(25)).current;
+  const formTranslate = useRef(new Animated.Value(35)).current;
+  const footerTranslate = useRef(new Animated.Value(20)).current;
+
+  const brandOpacity = useRef(new Animated.Value(0)).current;
+  const titleOpacity = useRef(new Animated.Value(0)).current;
+  const formOpacity = useRef(new Animated.Value(0)).current;
+  const footerOpacity = useRef(new Animated.Value(0)).current;
+
+  const buttonScale = useRef(new Animated.Value(1)).current;
+
+  const checkboxScale = useRef(new Animated.Value(1)).current;
+
+  const successScale = useRef(new Animated.Value(0.85)).current;
+  const successOpacity = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.timing(screenOpacity, {
+        toValue: 1,
+        duration: 350,
+        useNativeDriver: true,
+      }),
+
+      Animated.parallel([
+        Animated.timing(brandOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(brandTranslate, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.timing(titleOpacity, {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(titleTranslate, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.timing(formOpacity, {
+          toValue: 1,
+          duration: 550,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(formTranslate, {
+          toValue: 0,
+          duration: 550,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.timing(footerOpacity, {
+          toValue: 1,
+          duration: 450,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(footerTranslate, {
+          toValue: 0,
+          duration: 450,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start();
+  }, []);
+
   const isValidEmail = (email: string) => {
     return /\S+@\S+\.\S+/.test(email);
   };
@@ -47,6 +133,24 @@ export default function Register() {
     setConfirmPassword("");
     setPhone("");
     setAcceptTerms(false);
+  };
+
+  const pressButton = () => {
+    Animated.spring(buttonScale, {
+      toValue: 0.96,
+      useNativeDriver: true,
+      speed: 30,
+      bounciness: 0,
+    }).start();
+  };
+
+  const releaseButton = () => {
+    Animated.spring(buttonScale, {
+      toValue: 1,
+      useNativeDriver: true,
+      speed: 25,
+      bounciness: 5,
+    }).start();
   };
 
   const handleRegister = async () => {
@@ -110,7 +214,26 @@ export default function Register() {
       });
 
       clearFields();
+
       setShowSuccessModal(true);
+
+      successScale.setValue(0.85);
+      successOpacity.setValue(0);
+
+      Animated.parallel([
+        Animated.spring(successScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          speed: 18,
+          bounciness: 8,
+        }),
+
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true,
+        }),
+      ]).start();
     } catch (err: any) {
       console.log("ERRO COMPLETO:", err?.response?.data);
 
@@ -118,14 +241,46 @@ export default function Register() {
     }
   };
 
+  const toggleTerms = () => {
+    const newValue = !acceptTerms;
+
+    setAcceptTerms(newValue);
+    setErrorTerms("");
+
+    Animated.sequence([
+      Animated.spring(checkboxScale, {
+        toValue: 0.8,
+        useNativeDriver: true,
+        speed: 40,
+        bounciness: 0,
+      }),
+
+      Animated.spring(checkboxScale, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 25,
+        bounciness: 8,
+      }),
+    ]).start();
+  };
+
   return (
-    <View style={styles.container}>
+    <Animated.View
+      style={[
+        styles.container,
+        {
+          opacity: screenOpacity,
+        },
+      ]}
+    >
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
-        {/* VOLTAR */}
+        {/* =====================================================
+            VOLTAR
+        ===================================================== */}
 
         <TouchableOpacity
           style={styles.backButton}
@@ -135,27 +290,53 @@ export default function Register() {
           <Text style={styles.backIcon}>‹</Text>
         </TouchableOpacity>
 
-        {/* HEADER */}
+        {/* =====================================================
+            HEADER
+        ===================================================== */}
 
         <View style={styles.header}>
-          <View style={styles.brand}>
-            <Text style={styles.brandTitle}>BARÃO</Text>
+          <Animated.View
+            style={{
+              opacity: brandOpacity,
+              transform: [{ translateY: brandTranslate }],
+            }}
+          >
+            <View style={styles.brand}>
+              <Text style={styles.brandTitle}>BARÃO</Text>
 
-            <View style={styles.brandLine} />
+              <View style={styles.brandLine} />
 
-            <Text style={styles.brandSubtitle}>BARBEARIA</Text>
-          </View>
+              <Text style={styles.brandSubtitle}>BARBEARIA</Text>
+            </View>
+          </Animated.View>
 
-          <Text style={styles.title}>Crie sua conta.</Text>
+          <Animated.View
+            style={{
+              opacity: titleOpacity,
+              transform: [{ translateY: titleTranslate }],
+            }}
+          >
+            <Text style={styles.title}>Crie sua conta.</Text>
 
-          <Text style={styles.subtitle}>
-            Faça seu cadastro e agende seu próximo corte.
-          </Text>
+            <Text style={styles.subtitle}>
+              Faça seu cadastro e agende seu próximo corte.
+            </Text>
+          </Animated.View>
         </View>
 
-        {/* FORM */}
+        {/* =====================================================
+            FORM
+        ===================================================== */}
 
-        <View style={styles.form}>
+        <Animated.View
+          style={[
+            styles.form,
+            {
+              opacity: formOpacity,
+              transform: [{ translateY: formTranslate }],
+            },
+          ]}
+        >
           {/* NOME */}
 
           <View style={styles.field}>
@@ -321,21 +502,26 @@ export default function Register() {
             </View>
           ) : null}
 
-          {/* TERMOS */}
+          {/* =====================================================
+              TERMOS
+          ===================================================== */}
 
           <TouchableOpacity
             style={styles.termsContainer}
-            onPress={() => {
-              setAcceptTerms(!acceptTerms);
-              setErrorTerms("");
-            }}
+            onPress={toggleTerms}
             activeOpacity={0.7}
           >
-            <View
-              style={[styles.checkbox, acceptTerms && styles.checkboxActive]}
+            <Animated.View
+              style={{
+                transform: [{ scale: checkboxScale }],
+              }}
             >
-              {acceptTerms ? <Text style={styles.checkmark}>✓</Text> : null}
-            </View>
+              <View
+                style={[styles.checkbox, acceptTerms && styles.checkboxActive]}
+              >
+                {acceptTerms ? <Text style={styles.checkmark}>✓</Text> : null}
+              </View>
+            </Animated.View>
 
             <Text style={styles.termsText}>
               Aceito os{" "}
@@ -350,20 +536,40 @@ export default function Register() {
 
           {errorTerms ? <Text style={styles.error}>{errorTerms}</Text> : null}
 
-          {/* CADASTRAR */}
+          {/* =====================================================
+              CADASTRAR
+          ===================================================== */}
 
-          <TouchableOpacity
-            style={styles.button}
-            onPress={handleRegister}
-            activeOpacity={0.85}
+          <Animated.View
+            style={{
+              transform: [{ scale: buttonScale }],
+            }}
           >
-            <Text style={styles.buttonText}>Criar minha conta</Text>
-          </TouchableOpacity>
-        </View>
+            <TouchableOpacity
+              style={styles.button}
+              onPress={handleRegister}
+              onPressIn={pressButton}
+              onPressOut={releaseButton}
+              activeOpacity={1}
+            >
+              <Text style={styles.buttonText}>Criar minha conta</Text>
+            </TouchableOpacity>
+          </Animated.View>
+        </Animated.View>
 
-        {/* FOOTER */}
+        {/* =====================================================
+            FOOTER
+        ===================================================== */}
 
-        <View style={styles.footer}>
+        <Animated.View
+          style={[
+            styles.footer,
+            {
+              opacity: footerOpacity,
+              transform: [{ translateY: footerTranslate }],
+            },
+          ]}
+        >
           <Text style={styles.footerText}>Já tem uma conta?</Text>
 
           <Link href="/login" asChild>
@@ -371,14 +577,24 @@ export default function Register() {
               <Text style={styles.loginLink}>Fazer login</Text>
             </TouchableOpacity>
           </Link>
-        </View>
+        </Animated.View>
       </ScrollView>
 
-      {/* MODAL SUCESSO */}
+      {/* =====================================================
+          MODAL SUCESSO
+      ===================================================== */}
 
       <Modal visible={showSuccessModal} transparent animationType="fade">
         <View style={styles.modalContainer}>
-          <View style={styles.modalBox}>
+          <Animated.View
+            style={[
+              styles.modalBox,
+              {
+                opacity: successOpacity,
+                transform: [{ scale: successScale }],
+              },
+            ]}
+          >
             <View style={styles.successIcon}>
               <Text style={styles.successCheck}>✓</Text>
             </View>
@@ -401,11 +617,13 @@ export default function Register() {
             >
               <Text style={styles.modalButtonText}>Ir para login</Text>
             </TouchableOpacity>
-          </View>
+          </Animated.View>
         </View>
       </Modal>
 
-      {/* MODAL TERMOS */}
+      {/* =====================================================
+          MODAL TERMOS
+      ===================================================== */}
 
       <Modal visible={showTermsModal} transparent animationType="slide">
         <View style={styles.modalContainer}>
@@ -439,7 +657,7 @@ export default function Register() {
           </View>
         </View>
       </Modal>
-    </View>
+    </Animated.View>
   );
 }
 

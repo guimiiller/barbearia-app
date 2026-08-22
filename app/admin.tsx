@@ -1,10 +1,13 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Easing,
   FlatList,
   Image,
   StyleSheet,
@@ -16,32 +19,153 @@ import {
 import {
   cancelAppointment,
   concludeAppointment,
-  getAllAppointments,
+  getBarberAppointments,
   removeSlot,
 } from "../src/services/api";
+
+const AnimatedTouchableOpacity =
+  Animated.createAnimatedComponent(TouchableOpacity);
+
+function FadeInUp({
+  children,
+  delay = 0,
+  distance = 22,
+  style,
+}: {
+  children?: ReactNode;
+  delay?: number;
+  distance?: number;
+  style?: any;
+}) {
+  const opacity = useRef(new Animated.Value(0)).current;
+
+  const translateY = useRef(new Animated.Value(distance)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 500,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+
+      Animated.timing(translateY, {
+        toValue: 0,
+        duration: 500,
+        delay,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  return (
+    <Animated.View
+      style={[
+        style,
+        {
+          opacity,
+          transform: [
+            {
+              translateY,
+            },
+          ],
+        },
+      ]}
+    >
+      {children}
+    </Animated.View>
+  );
+}
+
+function ScaleButton({
+  children,
+  style,
+  onPress,
+  disabled = false,
+}: {
+  children: ReactNode;
+  style?: any;
+  onPress: () => void;
+  disabled?: boolean;
+}) {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () => {
+    if (disabled) return;
+
+    Animated.spring(scale, {
+      toValue: 0.95,
+      speed: 35,
+      bounciness: 0,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const handlePressOut = () => {
+    if (disabled) return;
+
+    Animated.spring(scale, {
+      toValue: 1,
+      speed: 25,
+      bounciness: 5,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  return (
+    <AnimatedTouchableOpacity
+      style={[
+        style,
+        {
+          transform: [{ scale }],
+        },
+      ]}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      activeOpacity={1}
+      disabled={disabled}
+    >
+      {children}
+    </AnimatedTouchableOpacity>
+  );
+}
 
 export default function Admin() {
   const router = useRouter();
 
+  const [admin, setAdmin] = useState<any>(null);
+
   const [appointments, setAppointments] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
+
   const [selectedDay, setSelectedDay] = useState(0);
 
   const getToday = () => {
     const today = new Date();
+
     today.setHours(0, 0, 0, 0);
+
     return today;
   };
 
   const getSelectedDate = () => {
     const date = getToday();
+
     date.setDate(date.getDate() + selectedDay);
+
     return date;
   };
 
   const formatApiDate = (date: Date) => {
     const year = date.getFullYear();
+
     const month = String(date.getMonth() + 1).padStart(2, "0");
+
     const day = String(date.getDate()).padStart(2, "0");
 
     return `${year}-${month}-${day}`;
@@ -104,25 +228,55 @@ export default function Admin() {
     try {
       setLoading(true);
 
-      const data = await getAllAppointments();
+      const storedUser = await AsyncStorage.getItem("user");
+
+      if (!storedUser) {
+        router.replace("/login");
+        return;
+      }
+
+      const parsedAdmin = JSON.parse(storedUser);
+
+      console.log("👑 ADMIN LOGADO:", parsedAdmin);
+
+      if (parsedAdmin.role !== "admin") {
+        router.replace("/home");
+        return;
+      }
+
+      if (!parsedAdmin.barberId) {
+        Alert.alert(
+          "Conta não configurada",
+          "Esta conta de administrador ainda não possui um barbeiro vinculado.",
+        );
+
+        setAppointments([]);
+        return;
+      }
+
+      setAdmin(parsedAdmin);
+
+      const data = await getBarberAppointments(Number(parsedAdmin.barberId));
 
       const selectedDate = formatApiDate(getSelectedDate());
 
-      console.log("📅 DIA SELECIONADO:", selectedDate);
-      console.log("📋 AGENDAMENTOS:", data);
+      console.log("💈 BARBER ID:", parsedAdmin.barberId);
 
-      const filtered = data.filter((appointment: any) => {
-        return (
+      console.log("📅 DIA SELECIONADO:", selectedDate);
+
+      console.log("📋 AGENDA DO BARBEIRO:", data);
+
+      const filtered = (data || []).filter(
+        (appointment: any) =>
           appointment.date === selectedDate &&
-          appointment.status !== "cancelado"
-        );
-      });
+          appointment.status !== "cancelado",
+      );
 
       filtered.sort((a: any, b: any) => a.time.localeCompare(b.time));
 
       setAppointments(filtered);
     } catch (error) {
-      console.log("❌ Erro ao buscar agendamentos", error);
+      console.log("❌ Erro ao buscar agendamentos:", error);
     } finally {
       setLoading(false);
     }
@@ -140,31 +294,35 @@ export default function Admin() {
     setSelectedDay((prev) => prev + 1);
   };
 
-  const handleCancel = async (item: any) => {
+  const handleCancel = (item: any) => {
     Alert.alert(
       "Cancelar agendamento",
+
       `Deseja cancelar o agendamento de ${item.userId?.name || "cliente"}?`,
+
       [
         {
           text: "Voltar",
           style: "cancel",
         },
+
         {
           text: "Cancelar",
           style: "destructive",
+
           onPress: async () => {
             try {
-              await cancelAppointment(item._id);
-              await removeSlot(item.date, item.time);
+              await cancelAppointment(item._id, "admin");
+              await removeSlot(item.date, item.time, item.barberId);
 
               await AsyncStorage.setItem(
                 "cancelMessage",
                 "❌ Seu agendamento foi cancelado pelo barbeiro.",
               );
 
-              loadAppointments();
+              await loadAppointments();
             } catch (error) {
-              console.log(error);
+              console.log("❌ ERRO CANCELAMENTO:", error);
 
               Alert.alert("Erro", "Não foi possível cancelar o agendamento.");
             }
@@ -174,25 +332,30 @@ export default function Admin() {
     );
   };
 
-  const handleConclude = async (item: any) => {
+  const handleConclude = (item: any) => {
     Alert.alert(
       "Concluir atendimento",
+
       `Deseja marcar o atendimento de ${
         item.userId?.name || "cliente"
       } como concluído?`,
+
       [
         {
           text: "Voltar",
           style: "cancel",
         },
+
         {
           text: "Concluir",
+
           onPress: async () => {
             try {
               await concludeAppointment(item._id);
-              await removeSlot(item.date, item.time);
 
-              loadAppointments();
+              await removeSlot(item.date, item.time, item.barberId);
+
+              await loadAppointments();
             } catch (error) {
               console.log("❌ ERRO AO CONCLUIR:", error);
 
@@ -204,17 +367,20 @@ export default function Admin() {
     );
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     Alert.alert("Sair da conta", "Deseja realmente sair?", [
       {
         text: "Cancelar",
         style: "cancel",
       },
+
       {
         text: "Sair",
         style: "destructive",
+
         onPress: async () => {
           await AsyncStorage.removeItem("token");
+
           await AsyncStorage.removeItem("user");
 
           router.replace("/landing");
@@ -227,34 +393,38 @@ export default function Admin() {
     <View style={styles.container}>
       {/* HEADER */}
 
-      <View style={styles.header}>
+      <FadeInUp delay={0} distance={16} style={styles.header}>
         <View style={styles.headerTop}>
           <View>
-            <Text style={styles.eyebrow}>PAINEL DO BARÃO</Text>
+            <Text style={styles.eyebrow}>PAINEL DO BARBEIRO</Text>
 
             <Text style={styles.title}>
-              Olá, Barão <Text style={styles.crown}>♛</Text>
+              Olá, {admin?.name || "Barbeiro"}{" "}
+              <Text style={styles.crown}>♛</Text>
             </Text>
           </View>
 
-          <View style={styles.profileCircle}>
-            <Text style={styles.profileLetter}>B</Text>
-          </View>
+          <ScaleButton style={styles.profileCircle} onPress={() => {}}>
+            <Text style={styles.profileLetter}>
+              {admin?.name?.charAt(0)?.toUpperCase() || "B"}
+            </Text>
+          </ScaleButton>
         </View>
 
-        {/* SELETOR DE DATA */}
+        {/* DATA */}
 
-        <View style={styles.dateSelector}>
-          <TouchableOpacity
+        <FadeInUp delay={80} distance={12} style={styles.dateSelector}>
+          <ScaleButton
             style={[
               styles.arrowButton,
+
               selectedDay === 0 && styles.arrowDisabled,
             ]}
             onPress={previousDay}
             disabled={selectedDay === 0}
           >
             <Text style={styles.arrow}>‹</Text>
-          </TouchableOpacity>
+          </ScaleButton>
 
           <View style={styles.dateCenter}>
             <Text style={styles.dayName}>{getDayName()}</Text>
@@ -262,22 +432,23 @@ export default function Admin() {
             <Text style={styles.dateText}>{formatDisplayDate()}</Text>
           </View>
 
-          <TouchableOpacity
+          <ScaleButton
             style={[
               styles.arrowButton,
+
               selectedDay === 6 && styles.arrowDisabled,
             ]}
             onPress={nextDay}
             disabled={selectedDay === 6}
           >
             <Text style={styles.arrow}>›</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
+          </ScaleButton>
+        </FadeInUp>
+      </FadeInUp>
 
       {/* RESUMO */}
 
-      <View style={styles.summary}>
+      <FadeInUp delay={150} distance={18} style={styles.summary}>
         <View>
           <Text style={styles.summaryLabel}>AGENDA</Text>
 
@@ -288,33 +459,33 @@ export default function Admin() {
           </Text>
         </View>
 
-        <View style={styles.countBox}>
+        <FadeInUp delay={250} distance={10} style={styles.countBox}>
           <Text style={styles.countNumber}>{appointments.length}</Text>
 
           <Text style={styles.countLabel}>HORÁRIOS</Text>
-        </View>
-      </View>
+        </FadeInUp>
+      </FadeInUp>
 
       {/* LISTA */}
 
       {loading ? (
-        <View style={styles.loadingContainer}>
+        <FadeInUp delay={200} distance={15} style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFFFFF" />
 
           <Text style={styles.loadingText}>Carregando agenda...</Text>
-        </View>
+        </FadeInUp>
       ) : appointments.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIconContainer}>
+        <FadeInUp delay={220} distance={25} style={styles.emptyContainer}>
+          <FadeInUp delay={300} distance={12} style={styles.emptyIconContainer}>
             <Text style={styles.emptyIcon}>○</Text>
-          </View>
+          </FadeInUp>
 
           <Text style={styles.emptyTitle}>Agenda livre</Text>
 
           <Text style={styles.emptyText}>
             Nenhum atendimento está marcado para este dia.
           </Text>
-        </View>
+        </FadeInUp>
       ) : (
         <FlatList
           style={styles.list}
@@ -323,113 +494,98 @@ export default function Admin() {
           keyExtractor={(item) => item._id}
           showsVerticalScrollIndicator={false}
           renderItem={({ item, index }) => (
-            <View
-              style={[
-                styles.card,
-                item.status === "concluido" && styles.cardDone,
-              ]}
-            >
-              {/* LINHA SUPERIOR */}
+            <FadeInUp delay={200 + index * 90} distance={25}>
+              <View
+                style={[
+                  styles.card,
 
-              <View style={styles.cardTop}>
-                <View style={styles.timeContainer}>
-                  <Text style={styles.time}>{item.time}</Text>
+                  item.status === "concluido" && styles.cardDone,
+                ]}
+              >
+                <View style={styles.cardTop}>
+                  <View style={styles.timeContainer}>
+                    <Text style={styles.time}>{item.time}</Text>
 
-                  <View style={styles.timeLine} />
+                    <View style={styles.timeLine} />
+                  </View>
+
+                  <View style={styles.clientContainer}>
+                    <Text style={styles.clientLabel}>CLIENTE</Text>
+
+                    <Text style={styles.clientName}>
+                      {item.userId?.name || "Cliente"}
+                    </Text>
+                  </View>
+
+                  <View style={styles.numberBadge}>
+                    <Text style={styles.numberBadgeText}>
+                      {String(index + 1).padStart(2, "0")}
+                    </Text>
+                  </View>
                 </View>
 
-                <View style={styles.clientContainer}>
-                  <Text style={styles.clientLabel}>CLIENTE</Text>
+                <View style={styles.cardDivider} />
 
-                  <Text style={styles.clientName}>
-                    {item.userId?.name || "Cliente"}
-                  </Text>
-                </View>
+                {/* TELEFONE */}
 
-                <View style={styles.numberBadge}>
-                  <Text style={styles.numberBadgeText}>
-                    {String(index + 1).padStart(2, "0")}
-                  </Text>
-                </View>
-              </View>
+                {item.userId?.phone ? (
+                  <View style={styles.infoRow}>
+                    <Text style={styles.infoLabel}>TELEFONE</Text>
 
-              <View style={styles.cardDivider} />
+                    <Text style={styles.infoValue}>{item.userId.phone}</Text>
+                  </View>
+                ) : null}
 
-              {/* TELEFONE */}
+                {/* SERVIÇO */}
 
-              {item.userId?.phone ? (
                 <View style={styles.infoRow}>
-                  <Text style={styles.infoLabel}>TELEFONE</Text>
+                  <Text style={styles.infoLabel}>SERVIÇO</Text>
 
-                  <Text style={styles.infoValue}>{item.userId.phone}</Text>
+                  <Text style={styles.infoValue}>
+                    {item.services?.map((s: any) => s.name).join(", ") ||
+                      "Serviço"}
+                  </Text>
                 </View>
-              ) : null}
 
-              {/* SERVIÇOS */}
+                {/* BOTÕES */}
 
-              <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>SERVIÇO</Text>
-
-                <Text style={styles.infoValue}>
-                  {item.services?.map((s: any) => s.name).join(", ") ||
-                    "Serviço"}
-                </Text>
-              </View>
-
-              {/* STATUS */}
-
-              {item.status === "concluido" && (
-                <View style={styles.doneContainer}>
-                  <View style={styles.doneDot} />
-
-                  <Text style={styles.doneText}>Atendimento concluído</Text>
-                </View>
-              )}
-
-              {/* BOTÕES */}
-
-              {item.status !== "concluido" && (
                 <View style={styles.actions}>
-                  <TouchableOpacity
+                  <ScaleButton
                     style={styles.concludeBtn}
                     onPress={() => handleConclude(item)}
-                    activeOpacity={0.8}
                   >
                     <Text style={styles.concludeBtnText}>
                       Concluir atendimento
                     </Text>
 
                     <Text style={styles.buttonArrow}>→</Text>
-                  </TouchableOpacity>
+                  </ScaleButton>
 
-                  <TouchableOpacity
+                  <ScaleButton
                     style={styles.cancelBtn}
                     onPress={() => handleCancel(item)}
-                    activeOpacity={0.8}
                   >
                     <Text style={styles.cancelBtnText}>Cancelar</Text>
-                  </TouchableOpacity>
+                  </ScaleButton>
                 </View>
-              )}
-            </View>
+              </View>
+            </FadeInUp>
           )}
         />
       )}
 
       {/* LOGOUT */}
 
-      <TouchableOpacity
-        style={styles.logoutBtn}
-        onPress={handleLogout}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.logoutText}>Sair da conta</Text>
-      </TouchableOpacity>
+      <FadeInUp delay={500} distance={18} style={styles.logoutWrapper}>
+        <ScaleButton style={styles.logoutBtn} onPress={handleLogout}>
+          <Text style={styles.logoutText}>Sair da conta</Text>
+        </ScaleButton>
+      </FadeInUp>
 
       {/* NAVBAR */}
 
-      <View style={styles.tabBar}>
-        <TouchableOpacity
+      <FadeInUp delay={450} distance={24} style={styles.tabBar}>
+        <ScaleButton
           style={styles.tabItem}
           onPress={() => router.push("/admin")}
         >
@@ -439,9 +595,9 @@ export default function Admin() {
           />
 
           <Text style={styles.tabTextActive}>Início</Text>
-        </TouchableOpacity>
+        </ScaleButton>
 
-        <TouchableOpacity
+        <ScaleButton
           style={styles.tabItem}
           onPress={() => router.push("/schedule-admin")}
         >
@@ -451,9 +607,9 @@ export default function Admin() {
           />
 
           <Text style={styles.tabText}>Agenda</Text>
-        </TouchableOpacity>
+        </ScaleButton>
 
-        <TouchableOpacity
+        <ScaleButton
           style={styles.tabItem}
           onPress={() => router.push("/services-admin")}
         >
@@ -463,8 +619,8 @@ export default function Admin() {
           />
 
           <Text style={styles.tabText}>Serviços</Text>
-        </TouchableOpacity>
-      </View>
+        </ScaleButton>
+      </FadeInUp>
     </View>
   );
 }
@@ -476,8 +632,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingTop: 48,
   },
-
-  /* HEADER */
 
   header: {
     marginBottom: 24,
@@ -523,8 +677,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "800",
   },
-
-  /* DATA */
 
   dateSelector: {
     width: "100%",
@@ -577,8 +729,6 @@ const styles = StyleSheet.create({
     marginTop: 3,
   },
 
-  /* RESUMO */
-
   summary: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -622,8 +772,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     marginTop: 1,
   },
-
-  /* LISTA */
 
   list: {
     flex: 1,
@@ -684,8 +832,6 @@ const styles = StyleSheet.create({
     textAlign: "center",
     lineHeight: 20,
   },
-
-  /* CARD */
 
   card: {
     backgroundColor: "#121212",
@@ -786,33 +932,6 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 
-  /* CONCLUÍDO */
-
-  doneContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 8,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#242424",
-  },
-
-  doneDot: {
-    width: 7,
-    height: 7,
-    borderRadius: 4,
-    backgroundColor: "#FFFFFF",
-    marginRight: 8,
-  },
-
-  doneText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  /* AÇÕES */
-
   actions: {
     flexDirection: "row",
     gap: 10,
@@ -859,13 +978,15 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
 
-  /* LOGOUT */
-
-  logoutBtn: {
+  logoutWrapper: {
     position: "absolute",
     bottom: 94,
-    right: 20,
     left: 20,
+    right: 20,
+  },
+
+  logoutBtn: {
+    width: "100%",
     height: 44,
     borderRadius: 13,
     backgroundColor: "#111111",
@@ -880,8 +1001,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
   },
-
-  /* NAVBAR */
 
   tabBar: {
     position: "absolute",

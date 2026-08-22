@@ -23,6 +23,11 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["agendado", "cancelado", "concluido"],
       default: "agendado",
     },
+    cancelledBy: {
+      type: String,
+      enum: ["client", "admin"],
+      default: null,
+    },
   },
   { timestamps: true },
 );
