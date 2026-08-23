@@ -54,40 +54,98 @@ export default function EditProfile() {
   };
 
   const handleSave = async () => {
+    // =====================================================
+    // VALIDAÇÕES
+    // =====================================================
+
     if (!name.trim()) {
-      Alert.alert("Atenção", "Digite seu nome.");
+      if (typeof window !== "undefined") {
+        window.alert("Digite seu nome.");
+      } else {
+        Alert.alert("Atenção", "Digite seu nome.");
+      }
+
       return;
     }
 
     if (!email.trim()) {
-      Alert.alert("Atenção", "Digite seu e-mail.");
+      if (typeof window !== "undefined") {
+        window.alert("Digite seu e-mail.");
+      } else {
+        Alert.alert("Atenção", "Digite seu e-mail.");
+      }
+
       return;
     }
 
     if (!phone.trim()) {
-      Alert.alert("Atenção", "Digite seu telefone.");
+      if (typeof window !== "undefined") {
+        window.alert("Digite seu telefone.");
+      } else {
+        Alert.alert("Atenção", "Digite seu telefone.");
+      }
+
       return;
     }
 
     try {
       setLoading(true);
 
+      // =====================================================
+      // BUSCA USUÁRIO SALVO
+      // =====================================================
+
       const userStorage = await AsyncStorage.getItem("user");
 
       const user = userStorage ? JSON.parse(userStorage) : null;
 
       if (!user) {
-        Alert.alert("Erro", "Usuário não encontrado.");
+        if (typeof window !== "undefined") {
+          window.alert("Usuário não encontrado.");
+
+          router.replace("/login");
+        } else {
+          Alert.alert("Erro", "Usuário não encontrado.");
+        }
+
         return;
       }
 
+      // =====================================================
+      // ATUALIZA USUÁRIO NO BACKEND
+      // =====================================================
+
       const updatedUser = await updateUser(user.id || user._id, {
         name: name.trim(),
-        email: email.trim(),
+        email: email.trim().toLowerCase(),
         phone: phone.trim(),
       });
 
+      console.log("✅ PERFIL ATUALIZADO:", updatedUser);
+
+      // =====================================================
+      // ATUALIZA ASYNC STORAGE
+      // =====================================================
+
       await AsyncStorage.setItem("user", JSON.stringify(updatedUser));
+
+      console.log("💾 USUÁRIO ATUALIZADO NO STORAGE");
+
+      // =====================================================
+      // WEB
+      // =====================================================
+
+      if (typeof window !== "undefined") {
+        window.alert("Seu perfil foi atualizado com sucesso!");
+
+        router.back();
+
+        return;
+      }
+
+      // =====================================================
+      // ANDROID / IOS
+      // =====================================================
 
       Alert.alert("Tudo certo!", "Seu perfil foi atualizado com sucesso.", [
         {
@@ -98,11 +156,25 @@ export default function EditProfile() {
     } catch (err: any) {
       console.log("❌ ERRO AO ATUALIZAR PERFIL:", err?.response?.data || err);
 
-      Alert.alert(
-        "Não foi possível salvar",
+      const message =
         err?.response?.data?.error ||
-          "Ocorreu um erro ao atualizar seu perfil.",
-      );
+        "Ocorreu um erro ao atualizar seu perfil.";
+
+      // =====================================================
+      // ERRO WEB
+      // =====================================================
+
+      if (typeof window !== "undefined") {
+        window.alert(message);
+
+        return;
+      }
+
+      // =====================================================
+      // ERRO ANDROID / IOS
+      // =====================================================
+
+      Alert.alert("Não foi possível salvar", message);
     } finally {
       setLoading(false);
     }

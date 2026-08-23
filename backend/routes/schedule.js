@@ -27,20 +27,49 @@ router.get("/:barberId/:date", async (req, res) => {
       });
     }
 
+    // =====================================================
+    // HORÁRIO DE SÃO PAULO
+    // =====================================================
+
     const now = new Date();
 
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
+    const saoPauloParts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    }).formatToParts(now);
+
+    const getPart = (type) =>
+      saoPauloParts.find((part) => part.type === type)?.value;
+
+    const year = getPart("year");
+    const month = getPart("month");
+    const day = getPart("day");
+
+    const currentHours = Number(getPart("hour"));
+    const currentMinutes = Number(getPart("minute"));
 
     const today = `${year}-${month}-${day}`;
 
-    let slots = schedule.slots;
+    console.log("🕒 HORÁRIO SÃO PAULO:", {
+      today,
+      currentHours,
+      currentMinutes,
+    });
+
+    // Faz uma cópia dos slots salvos
+    let slots = [...schedule.slots];
+
+    // =====================================================
+    // SOMENTE SE FOR HOJE:
+    // REMOVER HORÁRIOS QUE REALMENTE JÁ PASSARAM
+    // =====================================================
 
     if (date === today) {
-      const currentHours = now.getHours();
-      const currentMinutes = now.getMinutes();
-
       const currentMinutesTotal = currentHours * 60 + currentMinutes;
 
       slots = slots.filter((slot) => {
@@ -52,7 +81,13 @@ router.get("/:barberId/:date", async (req, res) => {
       });
     }
 
-    res.json({
+    console.log("📅 AGENDA ENCONTRADA:", {
+      barberId,
+      date,
+      slots: slots.map((slot) => slot.time),
+    });
+
+    return res.json({
       ...schedule.toObject(),
 
       barberId,
@@ -62,7 +97,7 @@ router.get("/:barberId/:date", async (req, res) => {
   } catch (error) {
     console.log("❌ ERRO AO BUSCAR HORÁRIOS:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao buscar horários",
     });
   }

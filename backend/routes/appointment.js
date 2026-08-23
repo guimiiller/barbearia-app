@@ -1,5 +1,6 @@
 import express from "express";
 import Appointment from "../models/Appointment.js";
+import Schedule from "../models/Schedule.js";
 import User from "../models/User.js";
 
 const router = express.Router();
@@ -383,15 +384,49 @@ router.delete("/concluir/:id", async (req, res) => {
       });
     }
 
+    console.log("✂️ CONCLUINDO AGENDAMENTO:", {
+      id: appointment._id,
+      barberId: appointment.barberId,
+      date: appointment.date,
+      time: appointment.time,
+    });
+
+    // Remove o horário da agenda disponível do barbeiro
+    const scheduleResult = await Schedule.updateOne(
+      {
+        barberId: Number(appointment.barberId),
+        date: appointment.date,
+      },
+      {
+        $pull: {
+          slots: {
+            time: appointment.time,
+          },
+        },
+      },
+    );
+
+    console.log("🗑️ RESULTADO REMOÇÃO DO HORÁRIO:", scheduleResult);
+
+    // Agora remove o agendamento
     await Appointment.findByIdAndDelete(req.params.id);
 
-    res.json({
-      message: "Agendamento concluído e removido.",
+    console.log("✅ ATENDIMENTO CONCLUÍDO:", appointment._id);
+    console.log("🕒 HORÁRIO REMOVIDO:", appointment.time);
+
+    return res.json({
+      success: true,
+      message: "Agendamento concluído e horário removido.",
+      removedSlot: {
+        barberId: appointment.barberId,
+        date: appointment.date,
+        time: appointment.time,
+      },
     });
   } catch (error) {
     console.log("❌ ERRO AO CONCLUIR:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       error: "Erro ao concluir agendamento.",
     });
   }

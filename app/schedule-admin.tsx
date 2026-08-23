@@ -155,6 +155,13 @@ export default function ScheduleAdmin() {
 
       console.log("🕒 HORÁRIOS RECEBIDOS:", data);
 
+      console.log("🔥 SLOTS RECEBIDOS:", data?.slots);
+
+      console.log(
+        "🔥 HORÁRIOS RECEBIDOS:",
+        data?.slots?.map((slot: any) => slot.time),
+      );
+
       const loadedSlots: string[] =
         data?.slots
           ?.map((slot: any) => String(slot.time))
@@ -260,13 +267,21 @@ export default function ScheduleAdmin() {
 
   const save = async () => {
     if (!selectedDate) {
-      Alert.alert("Erro", "Selecione uma data.");
+      if (typeof window !== "undefined") {
+        window.alert("Selecione uma data.");
+      } else {
+        Alert.alert("Erro", "Selecione uma data.");
+      }
 
       return;
     }
 
     if (!barberId) {
-      Alert.alert("Erro", "Não foi possível identificar o barbeiro.");
+      if (typeof window !== "undefined") {
+        window.alert("Não foi possível identificar o barbeiro.");
+      } else {
+        Alert.alert("Erro", "Não foi possível identificar o barbeiro.");
+      }
 
       return;
     }
@@ -274,49 +289,80 @@ export default function ScheduleAdmin() {
     try {
       setSaving(true);
 
+      // Remove horários passados
       const validSlots = slots.filter(
         (time) => !isPastTime(selectedDate, time),
       );
 
-      const normalizedSlots = validSlots
-        .filter(Boolean)
-        .sort()
-        .map((time) => ({
-          time,
-        }));
+      // Remove duplicados e organiza
+      const uniqueSlots = [...new Set(validSlots)].sort((a, b) =>
+        a.localeCompare(b),
+      );
 
-      console.log("💾 SALVANDO AGENDA:", {
-        barberId,
+      const normalizedSlots = uniqueSlots.map((time) => ({
+        time,
+      }));
 
+      console.log("======================================");
+      console.log("💾 SALVANDO AGENDA");
+      console.log("💈 BARBER ID:", barberId);
+      console.log("📅 DATA:", selectedDate);
+      console.log("🕒 SLOTS STATE:", slots);
+      console.log("🕒 SLOTS VÁLIDOS:", validSlots);
+      console.log("📦 SLOTS ENVIADOS:", normalizedSlots);
+      console.log("======================================");
+
+      const response = await saveSchedule({
+        barberId: Number(barberId),
         date: selectedDate,
-
         slots: normalizedSlots,
       });
 
-      await saveSchedule({
-        barberId,
+      console.log("======================================");
+      console.log("✅ RESPOSTA COMPLETA DO POST:", response);
+      console.log("🔥 SLOTS QUE O POST DEVOLVEU:", response?.slots);
+      console.log(
+        "🔥 TIMES QUE O POST DEVOLVEU:",
+        response?.slots?.map((slot: any) => slot.time),
+      );
+      console.log("======================================");
 
-        date: selectedDate,
+      console.log("✅ RESPOSTA DO BACKEND:", response);
 
-        slots: normalizedSlots,
-      });
+      // Mantém na tela exatamente o que acabamos de salvar.
+      // NÃO chama loadSchedule imediatamente.
+      setSlots(uniqueSlots);
 
-      await loadSchedule(selectedDate, barberId);
-
-      Alert.alert("Horários salvos", "Sua agenda foi atualizada com sucesso.");
+      if (typeof window !== "undefined") {
+        window.alert("Horários salvos com sucesso.");
+      } else {
+        Alert.alert(
+          "Horários salvos",
+          "Sua agenda foi atualizada com sucesso.",
+        );
+      }
     } catch (error: any) {
-      console.log("❌ ERRO AO SALVAR:", error?.response?.data || error);
+      console.log("======================================");
+      console.log("❌ ERRO AO SALVAR AGENDA");
+      console.log("❌ ERROR:", error);
+      console.log("❌ RESPONSE:", error?.response);
+      console.log("❌ DATA:", error?.response?.data);
+      console.log("======================================");
 
       const message =
         error?.response?.data?.error ||
+        error?.message ||
         "Não foi possível salvar os horários. Tente novamente.";
 
-      Alert.alert("Erro", message);
+      if (typeof window !== "undefined") {
+        window.alert(message);
+      } else {
+        Alert.alert("Erro", message);
+      }
     } finally {
       setSaving(false);
     }
   };
-
   const formatSelectedDate = () => {
     if (!selectedDate) {
       return "";

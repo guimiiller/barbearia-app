@@ -118,10 +118,51 @@ export default function ServicesAdmin() {
     setModalVisible(true);
   };
 
-  const handleDelete = (service: any) => {
+  const handleDelete = async (service: any) => {
+    const serviceName = service?.name || "este serviço";
+
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        `Deseja realmente excluir "${serviceName}"?`,
+      );
+
+      if (!confirmed) {
+        return;
+      }
+
+      try {
+        console.log("🗑 EXCLUINDO SERVIÇO:", service._id);
+
+        await deleteService(service._id);
+
+        await loadServices();
+
+        window.alert("Serviço excluído com sucesso.");
+      } catch (error: any) {
+        console.log(
+          "❌ Erro ao excluir serviço:",
+          error?.response?.data || error,
+        );
+
+        window.alert(
+          error?.response?.data?.error || "Não foi possível excluir o serviço.",
+        );
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert(
       "Excluir serviço",
-      `Deseja realmente excluir "${service.name}"?`,
+      `Deseja realmente excluir "${serviceName}"?`,
       [
         {
           text: "Cancelar",
@@ -132,15 +173,24 @@ export default function ServicesAdmin() {
           style: "destructive",
           onPress: async () => {
             try {
+              console.log("🗑 EXCLUINDO SERVIÇO:", service._id);
+
               await deleteService(service._id);
 
               await loadServices();
 
               Alert.alert("Sucesso", "Serviço excluído com sucesso.");
-            } catch (error) {
-              console.log("❌ Erro ao excluir serviço:", error);
+            } catch (error: any) {
+              console.log(
+                "❌ Erro ao excluir serviço:",
+                error?.response?.data || error,
+              );
 
-              Alert.alert("Erro", "Não foi possível excluir o serviço.");
+              Alert.alert(
+                "Erro",
+                error?.response?.data?.error ||
+                  "Não foi possível excluir o serviço.",
+              );
             }
           },
         },

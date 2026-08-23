@@ -9,6 +9,7 @@ import {
   Easing,
   FlatList,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -159,6 +160,76 @@ export default function Home() {
     }, []),
   );
 
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const storedUser = await AsyncStorage.getItem("user");
+
+        if (!storedUser) {
+          return;
+        }
+
+        const parsedUser = JSON.parse(storedUser);
+
+        const appointmentsData = await getAppointments(
+          parsedUser.id || parsedUser._id,
+        );
+
+        // =================================================
+        // VERIFICAR CANCELAMENTO FEITO PELO ADMIN
+        // =================================================
+
+        const canceledByAdmin = (appointmentsData || []).filter(
+          (appointment: any) =>
+            appointment.status === "cancelado" &&
+            appointment.cancelledBy === "admin",
+        );
+
+        for (const appointment of canceledByAdmin) {
+          const notificationKey = `cancelamento_aviso_${appointment._id}`;
+
+          const alreadyShown = await AsyncStorage.getItem(notificationKey);
+
+          if (alreadyShown === "true") {
+            continue;
+          }
+
+          await AsyncStorage.setItem(notificationKey, "true");
+
+          const message =
+            "O administrador cancelou seu agendamento. Entre em contato com a barbearia para mais informações.";
+
+          if (typeof window !== "undefined") {
+            window.alert(message);
+          } else {
+            Alert.alert("Agendamento cancelado", message);
+          }
+
+          break;
+        }
+
+        // =================================================
+        // ATUALIZAR CARD DA HOME
+        // =================================================
+
+        const activeAppointments = (appointmentsData || []).filter(
+          (appointment: any) => appointment.status === "agendado",
+        );
+
+        setAppointments(activeAppointments);
+      } catch (error) {
+        console.log(
+          "❌ Erro ao atualizar agendamentos automaticamente:",
+          error,
+        );
+      }
+    }, 5000);
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, []);
+
   const loadData = async () => {
     try {
       setLoading(true);
@@ -189,6 +260,7 @@ export default function Home() {
           appointment.status === "cancelado" &&
           appointment.cancelledBy === "admin",
       );
+
       if (canceledAppointmentsByAdmin.length > 0) {
         for (const appointment of canceledAppointmentsByAdmin) {
           const notificationKey = `cancelamento_aviso_${appointment._id}`;
@@ -199,12 +271,17 @@ export default function Home() {
             continue;
           }
 
+          // Marca como visualizado para não mostrar toda hora
           await AsyncStorage.setItem(notificationKey, "true");
 
-          Alert.alert(
-            "Agendamento cancelado",
-            "Seu agendamento foi cancelado pelo administrador.",
-          );
+          const message =
+            "O administrador cancelou seu agendamento. Entre em contato com a barbearia para mais informações.";
+
+          if (typeof window !== "undefined") {
+            window.alert(message);
+          } else {
+            Alert.alert("Agendamento cancelado", message);
+          }
 
           break;
         }
@@ -293,7 +370,62 @@ export default function Home() {
     });
   };
 
+  const performCancel = async (appointment: any) => {
+    try {
+      const response = await cancelAppointment(appointment._id, "client");
+
+      console.log("✅ CANCELAMENTO:", response);
+
+      await loadData();
+
+      if (response.blocked) {
+        const message =
+          "Seu agendamento foi cancelado com sucesso. Você atingiu o limite de 3 cancelamentos neste mês e ficará 24 horas sem poder realizar novos agendamentos.";
+
+        if (Platform.OS === "web") {
+          window.alert(message);
+        } else {
+          Alert.alert("Agendamento cancelado", message);
+        }
+
+        return;
+      }
+
+      const message = "Seu agendamento foi cancelado com sucesso.";
+
+      if (Platform.OS === "web") {
+        window.alert(message);
+      } else {
+        Alert.alert("Agendamento cancelado", message);
+      }
+    } catch (error: any) {
+      console.log("❌ ERRO AO CANCELAR:", error?.response?.data || error);
+
+      const message =
+        error?.response?.data?.error ||
+        "Não foi possível cancelar o agendamento.";
+
+      if (Platform.OS === "web") {
+        window.alert(message);
+      } else {
+        Alert.alert("Não foi possível cancelar", message);
+      }
+    }
+  };
+
   const handleCancel = (appointment: any) => {
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Tem certeza que deseja cancelar este agendamento?",
+      );
+
+      if (confirmed) {
+        performCancel(appointment);
+      }
+
+      return;
+    }
+
     Alert.alert(
       "Cancelar agendamento",
       "Tem certeza que deseja cancelar este agendamento?",
@@ -302,48 +434,10 @@ export default function Home() {
           text: "Voltar",
           style: "cancel",
         },
-
         {
           text: "Cancelar",
           style: "destructive",
-
-          onPress: async () => {
-            try {
-              const response = await cancelAppointment(
-                appointment._id,
-                "client",
-              );
-
-              console.log("✅ CANCELAMENTO:", response);
-
-              await loadData();
-
-              if (response.blocked) {
-                Alert.alert(
-                  "Agendamento cancelado",
-                  "Seu agendamento foi cancelado com sucesso. Você atingiu o limite de 3 cancelamentos neste mês e ficará 24 horas sem poder realizar novos agendamentos.",
-                );
-
-                return;
-              }
-
-              Alert.alert(
-                "Agendamento cancelado",
-                "Seu agendamento foi cancelado com sucesso.",
-              );
-            } catch (error: any) {
-              console.log(
-                "❌ ERRO AO CANCELAR:",
-                error?.response?.data || error,
-              );
-
-              const message =
-                error?.response?.data?.error ||
-                "Não foi possível cancelar o agendamento.";
-
-              Alert.alert("Não foi possível cancelar", message);
-            }
-          },
+          onPress: () => performCancel(appointment),
         },
       ],
     );

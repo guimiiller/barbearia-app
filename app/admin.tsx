@@ -20,7 +20,6 @@ import {
   cancelAppointment,
   concludeAppointment,
   getBarberAppointments,
-  removeSlot,
 } from "../src/services/api";
 
 const AnimatedTouchableOpacity =
@@ -294,96 +293,218 @@ export default function Admin() {
     setSelectedDay((prev) => prev + 1);
   };
 
+  // =====================================================
+  // CANCELAR AGENDAMENTO
+  // =====================================================
+
+  const performCancel = async (item: any) => {
+    try {
+      console.log("🗑 CANCELANDO AGENDAMENTO:", item._id);
+
+      const response = await cancelAppointment(item._id, "admin");
+
+      console.log("✅ CANCELAMENTO ADMIN:", response);
+
+      await loadAppointments();
+
+      if (typeof window !== "undefined") {
+        window.alert("Agendamento cancelado com sucesso.");
+      } else {
+        Alert.alert(
+          "Agendamento cancelado",
+          "O agendamento foi cancelado com sucesso.",
+        );
+      }
+    } catch (error: any) {
+      console.log("❌ ERRO CANCELAMENTO:", error?.response?.data || error);
+
+      const message =
+        error?.response?.data?.error ||
+        "Não foi possível cancelar o agendamento.";
+
+      if (typeof window !== "undefined") {
+        window.alert(message);
+      } else {
+        Alert.alert("Erro", message);
+      }
+    }
+  };
+
   const handleCancel = (item: any) => {
+    const clientName = item.userId?.name || "cliente";
+
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        `Deseja cancelar o agendamento de ${clientName}?`,
+      );
+
+      if (confirmed) {
+        void performCancel(item);
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert(
       "Cancelar agendamento",
-
-      `Deseja cancelar o agendamento de ${item.userId?.name || "cliente"}?`,
-
+      `Deseja cancelar o agendamento de ${clientName}?`,
       [
         {
           text: "Voltar",
           style: "cancel",
         },
-
         {
           text: "Cancelar",
           style: "destructive",
-
-          onPress: async () => {
-            try {
-              await cancelAppointment(item._id, "admin");
-              await removeSlot(item.date, item.time, item.barberId);
-
-              await AsyncStorage.setItem(
-                "cancelMessage",
-                "❌ Seu agendamento foi cancelado pelo barbeiro.",
-              );
-
-              await loadAppointments();
-            } catch (error) {
-              console.log("❌ ERRO CANCELAMENTO:", error);
-
-              Alert.alert("Erro", "Não foi possível cancelar o agendamento.");
-            }
+          onPress: () => {
+            void performCancel(item);
           },
         },
       ],
     );
   };
 
+  // =====================================================
+  // CONCLUIR AGENDAMENTO
+  // =====================================================
+
+  const performConclude = async (item: any) => {
+    try {
+      console.log("✅ CONCLUINDO AGENDAMENTO:", item._id);
+
+      const response = await concludeAppointment(item._id);
+
+      console.log("✅ ATENDIMENTO CONCLUÍDO:", response);
+
+      await loadAppointments();
+
+      if (typeof window !== "undefined") {
+        window.alert("Atendimento concluído com sucesso.");
+      } else {
+        Alert.alert(
+          "Atendimento concluído",
+          "O atendimento foi concluído com sucesso.",
+        );
+      }
+    } catch (error: any) {
+      console.log("❌ ERRO AO CONCLUIR:", error?.response?.data || error);
+
+      const message =
+        error?.response?.data?.error ||
+        "Não foi possível concluir o atendimento.";
+
+      if (typeof window !== "undefined") {
+        window.alert(message);
+      } else {
+        Alert.alert("Erro", message);
+      }
+    }
+  };
+
   const handleConclude = (item: any) => {
+    const clientName = item.userId?.name || "cliente";
+
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        `Deseja marcar o atendimento de ${clientName} como concluído?`,
+      );
+
+      if (confirmed) {
+        void performConclude(item);
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert(
       "Concluir atendimento",
-
-      `Deseja marcar o atendimento de ${
-        item.userId?.name || "cliente"
-      } como concluído?`,
-
+      `Deseja marcar o atendimento de ${clientName} como concluído?`,
       [
         {
           text: "Voltar",
           style: "cancel",
         },
-
         {
           text: "Concluir",
-
-          onPress: async () => {
-            try {
-              await concludeAppointment(item._id);
-
-              await removeSlot(item.date, item.time, item.barberId);
-
-              await loadAppointments();
-            } catch (error) {
-              console.log("❌ ERRO AO CONCLUIR:", error);
-
-              Alert.alert("Erro", "Não foi possível concluir o atendimento.");
-            }
+          onPress: () => {
+            void performConclude(item);
           },
         },
       ],
     );
   };
 
+  // =====================================================
+  // LOGOUT
+  // =====================================================
+
+  const performLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(["token", "user"]);
+
+      setAdmin(null);
+
+      console.log("✅ ADMIN DESLOGADO");
+
+      router.replace("/login");
+    } catch (error) {
+      console.log("❌ ERRO AO SAIR:", error);
+
+      if (typeof window !== "undefined") {
+        window.alert("Não foi possível sair da conta.");
+      } else {
+        Alert.alert("Erro", "Não foi possível sair da conta.");
+      }
+    }
+  };
+
   const handleLogout = () => {
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(
+        "Tem certeza que deseja sair da sua conta?",
+      );
+
+      if (confirmed) {
+        void performLogout();
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert("Sair da conta", "Deseja realmente sair?", [
       {
         text: "Cancelar",
         style: "cancel",
       },
-
       {
         text: "Sair",
         style: "destructive",
-
-        onPress: async () => {
-          await AsyncStorage.removeItem("token");
-
-          await AsyncStorage.removeItem("user");
-
-          router.replace("/landing");
+        onPress: () => {
+          void performLogout();
         },
       },
     ]);

@@ -5,6 +5,7 @@ import { useCallback, useState } from "react";
 import {
   Alert,
   Image,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -37,7 +38,45 @@ export default function Profile() {
     }
   };
 
-  const handleLogout = async () => {
+  const performLogout = async () => {
+    try {
+      await AsyncStorage.multiRemove(["token", "user"]);
+
+      setUser(null);
+
+      console.log("✅ USUÁRIO DESLOGADO");
+
+      router.replace("/login");
+    } catch (error) {
+      console.log("❌ ERRO AO SAIR:", error);
+
+      if (Platform.OS !== "web") {
+        Alert.alert("Erro", "Não foi possível sair da conta.");
+      }
+    }
+  };
+
+  const handleLogout = () => {
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        "Tem certeza que deseja sair da sua conta?",
+      );
+
+      if (confirmed) {
+        performLogout();
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert("Sair da conta", "Tem certeza que deseja sair?", [
       {
         text: "Cancelar",
@@ -46,12 +85,7 @@ export default function Profile() {
       {
         text: "Sair",
         style: "destructive",
-        onPress: async () => {
-          await AsyncStorage.removeItem("token");
-          await AsyncStorage.removeItem("user");
-
-          router.replace("/login");
-        },
+        onPress: performLogout,
       },
     ]);
   };
@@ -75,7 +109,7 @@ export default function Profile() {
 
           <TouchableOpacity
             style={styles.homeButton}
-            onPress={() => router.push("/")}
+            onPress={() => router.push("/home")}
             activeOpacity={0.8}
           >
             <Image
@@ -208,7 +242,7 @@ export default function Profile() {
       <View style={styles.tabBar}>
         <TouchableOpacity
           style={styles.tabItem}
-          onPress={() => router.push("/")}
+          onPress={() => router.push("/home")}
           activeOpacity={0.8}
         >
           <Image

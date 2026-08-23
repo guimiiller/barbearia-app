@@ -100,12 +100,22 @@ export default function Confirm() {
       const user = JSON.parse(userStorage || "{}");
 
       if (!user?.id && !user?._id) {
-        Alert.alert("Sessão expirada", "Faça login novamente para continuar.");
+        const message =
+          "Sua sessão expirou. Faça login novamente para continuar.";
+
+        if (typeof window !== "undefined") {
+          window.alert(message);
+        } else {
+          Alert.alert("Sessão expirada", message);
+        }
 
         router.replace("/login");
-
         return;
       }
+
+      // =====================================================
+      // REAGENDAMENTO
+      // =====================================================
 
       if (rescheduleId) {
         await updateAppointment(rescheduleId, {
@@ -116,44 +126,89 @@ export default function Confirm() {
           barberId,
         });
 
-        Alert.alert(
-          "Agendamento atualizado",
-          "Seu horário foi reagendado com sucesso.",
-          [
-            {
-              text: "Continuar",
-              onPress: () => router.replace("/home"),
-            },
-          ],
-        );
-      } else {
-        await createAppointment({
-          userId: user.id || user._id,
-          services,
-          date,
-          time,
-          barberId,
-        });
+        console.log("✅ AGENDAMENTO ATUALIZADO");
 
-        Alert.alert(
-          "Agendamento confirmado",
-          "Seu horário foi reservado com sucesso.",
-          [
-            {
-              text: "Continuar",
-              onPress: () => router.replace("/home"),
-            },
-          ],
-        );
+        if (typeof window !== "undefined") {
+          window.alert("Seu horário foi reagendado com sucesso.");
+
+          router.replace("/home");
+        } else {
+          Alert.alert(
+            "Agendamento atualizado",
+            "Seu horário foi reagendado com sucesso.",
+            [
+              {
+                text: "Continuar",
+                onPress: () => router.replace("/home"),
+              },
+            ],
+          );
+        }
+
+        return;
       }
+
+      // =====================================================
+      // NOVO AGENDAMENTO
+      // =====================================================
+
+      await createAppointment({
+        userId: user.id || user._id,
+        services,
+        date,
+        time,
+        barberId,
+      });
+
+      console.log("✅ AGENDAMENTO CRIADO");
+
+      // =====================================================
+      // WEB / PWA
+      // =====================================================
+
+      if (typeof window !== "undefined") {
+        window.alert("Seu horário foi reservado com sucesso.");
+
+        router.replace("/home");
+
+        return;
+      }
+
+      // =====================================================
+      // ANDROID / IOS
+      // =====================================================
+
+      Alert.alert(
+        "Agendamento confirmado",
+        "Seu horário foi reservado com sucesso.",
+        [
+          {
+            text: "Continuar",
+            onPress: () => router.replace("/home"),
+          },
+        ],
+      );
     } catch (err: any) {
       console.log("❌ Erro ao confirmar:", err);
 
-      Alert.alert(
-        "Não foi possível confirmar",
+      console.log("🔥 RESPOSTA DO BACKEND:", err?.response?.data);
+
+      console.log("📤 DADOS QUE FORAM ENVIADOS:", {
+        services,
+        date,
+        time,
+        barberId,
+      });
+
+      const message =
         err?.response?.data?.error ||
-          "Ocorreu um erro ao salvar seu agendamento. Tente novamente.",
-      );
+        "Ocorreu um erro ao salvar seu agendamento. Tente novamente.";
+
+      if (typeof window !== "undefined") {
+        window.alert(message);
+      } else {
+        Alert.alert("Não foi possível confirmar", message);
+      }
     } finally {
       setLoading(false);
     }
