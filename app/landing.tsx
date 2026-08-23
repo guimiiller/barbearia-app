@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import {
   Animated,
   Easing,
-  ImageBackground,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,7 +22,6 @@ export default function Landing() {
   const descriptionOpacity = useRef(new Animated.Value(0)).current;
 
   const buttonsOpacity = useRef(new Animated.Value(0)).current;
-
   const buttonsTranslateY = useRef(new Animated.Value(30)).current;
 
   useEffect(() => {
@@ -85,12 +84,26 @@ export default function Landing() {
   }, []);
 
   return (
-    <ImageBackground
-      source={require("../assets/images/background-hero.png")}
-      style={styles.container}
-      resizeMode="cover"
-    >
+    <View style={styles.container}>
+      {/* =====================================
+          IMAGEM DE FUNDO
+      ===================================== */}
+
+      <Image
+        source={require("../assets/images/background-hero.png")}
+        style={styles.backgroundImage}
+        resizeMode="cover"
+      />
+
+      {/* =====================================
+          OVERLAY ESCURO
+      ===================================== */}
+
       <View style={styles.overlay} />
+
+      {/* =====================================
+          CONTEÚDO
+      ===================================== */}
 
       <View style={styles.content}>
         {/* =====================================
@@ -118,7 +131,7 @@ export default function Landing() {
         </Animated.View>
 
         {/* =====================================
-            TEXTO
+            TEXTO PRINCIPAL
         ===================================== */}
 
         <View style={styles.heroText}>
@@ -183,7 +196,7 @@ export default function Landing() {
           </TouchableOpacity>
         </Animated.View>
       </View>
-    </ImageBackground>
+    </View>
   );
 }
 
@@ -191,6 +204,18 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
+    position: "relative",
+    overflow: "hidden",
+  },
+
+  // =====================================================
+  // BACKGROUND
+  // =====================================================
+
+  backgroundImage: {
+    ...StyleSheet.absoluteFillObject,
+    width: "100%",
+    height: "100%",
   },
 
   overlay: {
@@ -198,13 +223,22 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0, 0, 0, 0.62)",
   },
 
+  // =====================================================
+  // CONTEÚDO
+  // =====================================================
+
   content: {
     flex: 1,
     justifyContent: "space-between",
     paddingHorizontal: 28,
     paddingTop: 75,
     paddingBottom: 45,
+    zIndex: 2,
   },
+
+  // =====================================================
+  // MARCA
+  // =====================================================
 
   brand: {
     alignItems: "center",
@@ -232,6 +266,10 @@ const styles = StyleSheet.create({
     letterSpacing: 4,
   },
 
+  // =====================================================
+  // HERO
+  // =====================================================
+
   heroText: {
     alignItems: "center",
     marginTop: 120,
@@ -242,7 +280,6 @@ const styles = StyleSheet.create({
     fontSize: 38,
     fontWeight: "300",
     lineHeight: 44,
-
     textAlign: "center",
   },
 
@@ -251,6 +288,7 @@ const styles = StyleSheet.create({
     fontSize: 40,
     fontWeight: "800",
     lineHeight: 46,
+    textAlign: "center",
   },
 
   description: {
@@ -261,6 +299,10 @@ const styles = StyleSheet.create({
     marginTop: 18,
     maxWidth: 290,
   },
+
+  // =====================================================
+  // BOTÕES
+  // =====================================================
 
   buttons: {
     width: "100%",

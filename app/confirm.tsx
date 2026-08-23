@@ -25,11 +25,13 @@ export default function Confirm() {
   const [loading, setLoading] = useState(false);
 
   const getBarberName = (id: any) => {
-    if (Number(id) === 1) return "Barão";
-    if (Number(id) === 2) return "...";
-    if (Number(id) === 3) return "...";
+    const barberId = Number(id);
 
-    return "Barão";
+    if (barberId === 1) return "Barão";
+    if (barberId === 2) return "Kauan";
+    if (barberId === 3) return "Mario";
+
+    return "Barbeiro";
   };
 
   const formatDate = (

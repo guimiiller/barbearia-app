@@ -199,14 +199,21 @@ export default function ScheduleAdmin() {
   const addTime = () => {
     const time = newTime.trim();
 
-    if (!time) {
-      Alert.alert("Atenção", "Digite um horário.");
+    const showMessage = (title: string, message: string) => {
+      if (typeof window !== "undefined") {
+        window.alert(`${title}\n\n${message}`);
+      } else {
+        Alert.alert(title, message);
+      }
+    };
 
+    if (!time) {
+      showMessage("Atenção", "Digite um horário.");
       return;
     }
 
     if (!/^\d{2}:\d{2}$/.test(time)) {
-      Alert.alert(
+      showMessage(
         "Horário inválido",
         "Digite o horário no formato HH:MM. Exemplo: 14:00",
       );
@@ -216,25 +223,49 @@ export default function ScheduleAdmin() {
 
     const [hours, minutes] = time.split(":").map(Number);
 
-    if (hours > 23 || minutes > 59) {
-      Alert.alert("Horário inválido", "Digite um horário válido.");
-
+    if (
+      Number.isNaN(hours) ||
+      Number.isNaN(minutes) ||
+      hours > 23 ||
+      minutes > 59
+    ) {
+      showMessage("Horário inválido", "Digite um horário válido.");
       return;
     }
 
-    const normalizedTime = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
+    const normalizedTime = `${String(hours).padStart(2, "0")}:${String(
+      minutes,
+    ).padStart(2, "0")}`;
+
+    // =====================================================
+    // HORÁRIO ATUAL OU JÁ PASSADO
+    // =====================================================
 
     if (isPastTime(selectedDate, normalizedTime)) {
-      Alert.alert("Horário inválido", "Esse horário já passou.");
+      showMessage(
+        "Horário indisponível",
+        "Esse horário já passou ou corresponde ao horário atual.",
+      );
 
       return;
     }
+
+    // =====================================================
+    // HORÁRIO DUPLICADO
+    // =====================================================
 
     if (slots.includes(normalizedTime)) {
-      Alert.alert("Horário já cadastrado", "Esse horário já está disponível.");
+      showMessage(
+        "Horário já cadastrado",
+        "Esse horário já está disponível na agenda.",
+      );
 
       return;
     }
+
+    // =====================================================
+    // ADICIONAR
+    // =====================================================
 
     setSlots((currentSlots) =>
       [...currentSlots, normalizedTime].sort((a, b) => a.localeCompare(b)),
@@ -244,18 +275,34 @@ export default function ScheduleAdmin() {
   };
 
   const removeTime = (time: string) => {
+    // =====================================================
+    // WEB / PWA
+    // =====================================================
+
+    if (typeof window !== "undefined") {
+      const confirmed = window.confirm(`Deseja remover o horário ${time}?`);
+
+      if (confirmed) {
+        setSlots((currentSlots) =>
+          currentSlots.filter((slot) => slot !== time),
+        );
+      }
+
+      return;
+    }
+
+    // =====================================================
+    // ANDROID / IOS
+    // =====================================================
+
     Alert.alert("Remover horário", `Deseja remover o horário ${time}?`, [
       {
         text: "Cancelar",
-
         style: "cancel",
       },
-
       {
         text: "Remover",
-
         style: "destructive",
-
         onPress: () => {
           setSlots((currentSlots) =>
             currentSlots.filter((slot) => slot !== time),

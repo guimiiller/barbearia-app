@@ -353,23 +353,24 @@ export default function Home() {
 
   const handleSchedule = () => {
     if (selectedServices.length === 0) {
-      Alert.alert(
-        "Selecione um serviço",
-        "Escolha pelo menos um serviço antes de continuar.",
-      );
+      const message = "Escolha pelo menos um serviço antes de continuar.";
+
+      if (typeof window !== "undefined") {
+        window.alert(message);
+      } else {
+        Alert.alert("Selecione um serviço", message);
+      }
 
       return;
     }
 
     router.push({
       pathname: "/schedule",
-
       params: {
         services: JSON.stringify(selectedServices),
       },
     });
   };
-
   const performCancel = async (appointment: any) => {
     try {
       const response = await cancelAppointment(appointment._id, "client");
