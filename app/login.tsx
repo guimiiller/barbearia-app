@@ -341,8 +341,6 @@ export default function Login() {
             {/* HEADER */}
 
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Esqueceu a senha?</Text>
-
               <Text style={styles.modalSubtitle}>
                 {recoveryStep === "email"
                   ? "Informe o e-mail da sua conta."
