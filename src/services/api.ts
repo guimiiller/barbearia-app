@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "http://192.168.0.6:3000",
+  baseURL: "https://barao-barbearia-api.onrender.com",
 });
 
 export type AppointmentData = {
