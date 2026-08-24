@@ -4,6 +4,7 @@ import {
   Animated,
   Easing,
   Image,
+  Platform,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,74 +15,105 @@ export default function Landing() {
   const router = useRouter();
 
   const brandOpacity = useRef(new Animated.Value(0)).current;
-  const brandTranslateY = useRef(new Animated.Value(-20)).current;
+  const brandTranslateY = useRef(new Animated.Value(-14)).current;
 
   const heroOpacity = useRef(new Animated.Value(0)).current;
-  const heroTranslateY = useRef(new Animated.Value(25)).current;
+  const heroTranslateY = useRef(new Animated.Value(18)).current;
 
   const descriptionOpacity = useRef(new Animated.Value(0)).current;
 
   const buttonsOpacity = useRef(new Animated.Value(0)).current;
-  const buttonsTranslateY = useRef(new Animated.Value(30)).current;
+  const buttonsTranslateY = useRef(new Animated.Value(18)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.parallel([
-        Animated.timing(brandOpacity, {
-          toValue: 1,
-          duration: 700,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
+    const nativeDriver = Platform.OS !== "web";
 
-        Animated.timing(brandTranslateY, {
-          toValue: 0,
-          duration: 700,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
+    const animation = Animated.parallel([
+      // =====================================================
+      // MARCA
+      // =====================================================
 
-      Animated.parallel([
-        Animated.timing(heroOpacity, {
-          toValue: 1,
-          duration: 650,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
+      Animated.timing(brandOpacity, {
+        toValue: 1,
+        duration: 320,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: nativeDriver,
+      }),
 
-        Animated.timing(heroTranslateY, {
-          toValue: 0,
-          duration: 650,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
+      Animated.timing(brandTranslateY, {
+        toValue: 0,
+        duration: 320,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: nativeDriver,
+      }),
+
+      // =====================================================
+      // HERO
+      // =====================================================
+
+      Animated.timing(heroOpacity, {
+        toValue: 1,
+        duration: 360,
+        delay: 80,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: nativeDriver,
+      }),
+
+      Animated.timing(heroTranslateY, {
+        toValue: 0,
+        duration: 360,
+        delay: 80,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: nativeDriver,
+      }),
+
+      // =====================================================
+      // DESCRIÇÃO
+      // =====================================================
 
       Animated.timing(descriptionOpacity, {
         toValue: 1,
-        duration: 500,
+        duration: 320,
+        delay: 140,
         easing: Easing.out(Easing.ease),
-        useNativeDriver: true,
+        useNativeDriver: nativeDriver,
       }),
 
-      Animated.parallel([
-        Animated.timing(buttonsOpacity, {
-          toValue: 1,
-          duration: 600,
-          easing: Easing.out(Easing.ease),
-          useNativeDriver: true,
-        }),
+      // =====================================================
+      // BOTÕES
+      // =====================================================
 
-        Animated.timing(buttonsTranslateY, {
-          toValue: 0,
-          duration: 600,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start();
-  }, []);
+      Animated.timing(buttonsOpacity, {
+        toValue: 1,
+        duration: 350,
+        delay: 190,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: nativeDriver,
+      }),
+
+      Animated.timing(buttonsTranslateY, {
+        toValue: 0,
+        duration: 350,
+        delay: 190,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: nativeDriver,
+      }),
+    ]);
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [
+    brandOpacity,
+    brandTranslateY,
+    heroOpacity,
+    heroTranslateY,
+    descriptionOpacity,
+    buttonsOpacity,
+    buttonsTranslateY,
+  ]);
 
   return (
     <View style={styles.container}>
@@ -96,7 +128,7 @@ export default function Landing() {
       />
 
       {/* =====================================
-          OVERLAY ESCURO
+          OVERLAY
       ===================================== */}
 
       <View style={styles.overlay} />
