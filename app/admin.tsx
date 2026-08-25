@@ -141,6 +141,9 @@ export default function Admin() {
   const [appointments, setAppointments] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Carregando seu painel...",
+  );
 
   const [selectedDay, setSelectedDay] = useState(0);
 
@@ -222,6 +225,38 @@ export default function Admin() {
       loadAppointments();
     }, [selectedDay]),
   );
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingMessage("Carregando seu painel...");
+      return;
+    }
+
+    setLoadingMessage("Carregando seu painel...");
+
+    const timer1 = setTimeout(() => {
+      setLoadingMessage("Conectando à Barão Barbearia...");
+    }, 3000);
+
+    const timer2 = setTimeout(() => {
+      setLoadingMessage("Buscando os agendamentos...");
+    }, 7000);
+
+    const timer3 = setTimeout(() => {
+      setLoadingMessage("Organizando sua agenda...");
+    }, 12000);
+
+    const timer4 = setTimeout(() => {
+      setLoadingMessage("O primeiro acesso pode levar um instante...");
+    }, 18000);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+    };
+  }, [loading]);
 
   const loadAppointments = async () => {
     try {
@@ -590,11 +625,13 @@ export default function Admin() {
       {/* LISTA */}
 
       {loading ? (
-        <FadeInUp delay={200} distance={15} style={styles.loadingContainer}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFFFFF" />
 
-          <Text style={styles.loadingText}>Carregando agenda...</Text>
-        </FadeInUp>
+          <Text style={styles.loadingTitle}>Preparando seu painel</Text>
+
+          <Text style={styles.loadingText}>{loadingMessage}</Text>
+        </View>
       ) : appointments.length === 0 ? (
         <FadeInUp delay={220} distance={25} style={styles.emptyContainer}>
           <FadeInUp delay={300} distance={12} style={styles.emptyIconContainer}>
@@ -906,13 +943,24 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 120,
+    paddingHorizontal: 32,
+  },
+
+  loadingTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 22,
   },
 
   loadingText: {
-    color: "#666",
-    fontSize: 13,
-    marginTop: 12,
+    color: "#8E8E8E",
+    fontSize: 14,
+    fontWeight: "400",
+    textAlign: "center",
+    lineHeight: 21,
+    marginTop: 8,
   },
 
   emptyContainer: {

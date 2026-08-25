@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Link, useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Animated,
   Easing,
@@ -39,6 +40,9 @@ export default function Login() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginLoadingText, setLoginLoadingText] = useState("Entrando...");
 
   const [showPassword, setShowPassword] = useState(false);
 
@@ -145,16 +149,18 @@ export default function Login() {
   };
 
   const handleLogin = async () => {
+    if (loginLoading) return;
+
     setErrorEmail("");
     setErrorPassword("");
     setErrorGeneral("");
 
     let hasError = false;
 
-    if (!email) {
+    if (!email.trim()) {
       setErrorEmail("Digite seu e-mail");
       hasError = true;
-    } else if (!isValidEmail(email)) {
+    } else if (!isValidEmail(email.trim())) {
       setErrorEmail("E-mail inválido");
       hasError = true;
     }
@@ -166,15 +172,54 @@ export default function Login() {
 
     if (hasError) return;
 
+    let timerConnecting: ReturnType<typeof setTimeout> | null = null;
+    let timerPreparing: ReturnType<typeof setTimeout> | null = null;
+    let timerFirstAccess: ReturnType<typeof setTimeout> | null = null;
+
     try {
+      // =====================================================
+      // INICIA LOADING
+      // =====================================================
+
+      setLoginLoading(true);
+      setLoginLoadingText("Entrando...");
+
+      // =====================================================
+      // MENSAGENS PROGRESSIVAS
+      // =====================================================
+
+      timerConnecting = setTimeout(() => {
+        setLoginLoadingText("Conectando ao servidor...");
+      }, 3000);
+
+      timerPreparing = setTimeout(() => {
+        setLoginLoadingText("Preparando seus dados...");
+      }, 8000);
+
+      timerFirstAccess = setTimeout(() => {
+        setLoginLoadingText("Primeiro acesso pode levar um instante...");
+      }, 15000);
+
+      // =====================================================
+      // LOGIN
+      // =====================================================
+
       const res = await loginUser({
-        email,
+        email: email.trim().toLowerCase(),
         password,
       });
+
+      // =====================================================
+      // SALVA SESSÃO
+      // =====================================================
 
       await AsyncStorage.setItem("token", res.token);
 
       await AsyncStorage.setItem("user", JSON.stringify(res.user));
+
+      // =====================================================
+      // REDIRECIONAMENTO
+      // =====================================================
 
       if (res.user.role === "admin") {
         router.replace("/admin");
@@ -182,9 +227,35 @@ export default function Login() {
         router.replace("/home");
       }
     } catch (err: any) {
+      console.log("❌ ERRO NO LOGIN:", err?.response?.data || err);
+
       setErrorGeneral(
-        err?.response?.data?.error || "E-mail ou senha incorretos",
+        err?.response?.data?.error ||
+          "Não foi possível entrar. Verifique seu e-mail e senha.",
       );
+    } finally {
+      // =====================================================
+      // LIMPA TIMERS
+      // =====================================================
+
+      if (timerConnecting) {
+        clearTimeout(timerConnecting);
+      }
+
+      if (timerPreparing) {
+        clearTimeout(timerPreparing);
+      }
+
+      if (timerFirstAccess) {
+        clearTimeout(timerFirstAccess);
+      }
+
+      // =====================================================
+      // FINALIZA LOADING
+      // =====================================================
+
+      setLoginLoading(false);
+      setLoginLoadingText("Entrando...");
     }
   };
 
@@ -687,13 +758,25 @@ export default function Login() {
           }}
         >
           <TouchableOpacity
-            style={styles.loginButton}
+            style={[
+              styles.loginButton,
+              loginLoading && styles.loginButtonLoading,
+            ]}
             onPress={handleLogin}
-            onPressIn={handleButtonPressIn}
-            onPressOut={handleButtonPressOut}
+            onPressIn={loginLoading ? undefined : handleButtonPressIn}
+            onPressOut={loginLoading ? undefined : handleButtonPressOut}
             activeOpacity={0.9}
+            disabled={loginLoading}
           >
-            <Text style={styles.loginButtonText}>Entrar</Text>
+            {loginLoading ? (
+              <View style={styles.loginLoadingContent}>
+                <ActivityIndicator size="small" color="#000" />
+
+                <Text style={styles.loginButtonText}>{loginLoadingText}</Text>
+              </View>
+            ) : (
+              <Text style={styles.loginButtonText}>Entrar</Text>
+            )}
           </TouchableOpacity>
         </Animated.View>
       </Animated.View>
@@ -918,6 +1001,17 @@ const styles = StyleSheet.create({
     color: "#000",
     fontSize: 16,
     fontWeight: "800",
+  },
+
+  loginButtonLoading: {
+    opacity: 0.85,
+  },
+
+  loginLoadingContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
   },
 
   footer: {

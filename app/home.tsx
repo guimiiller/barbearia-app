@@ -139,6 +139,9 @@ export default function Home() {
   const [appointments, setAppointments] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState(
+    "Carregando sua experiência...",
+  );
 
   const [selectedServices, setSelectedServices] = useState<any[]>([]);
 
@@ -159,6 +162,38 @@ export default function Home() {
       loadData();
     }, []),
   );
+
+  useEffect(() => {
+    if (!loading) {
+      setLoadingMessage("Carregando sua experiência...");
+      return;
+    }
+
+    setLoadingMessage("Carregando sua experiência...");
+
+    const timer1 = setTimeout(() => {
+      setLoadingMessage("Conectando à Barão Barbearia...");
+    }, 3000);
+
+    const timer2 = setTimeout(() => {
+      setLoadingMessage("Buscando serviços e agendamentos...");
+    }, 7000);
+
+    const timer3 = setTimeout(() => {
+      setLoadingMessage("Estamos preparando tudo para você...");
+    }, 12000);
+
+    const timer4 = setTimeout(() => {
+      setLoadingMessage("O primeiro acesso pode levar um instante...");
+    }, 18000);
+
+    return () => {
+      clearTimeout(timer1);
+      clearTimeout(timer2);
+      clearTimeout(timer3);
+      clearTimeout(timer4);
+    };
+  }, [loading]);
 
   useEffect(() => {
     const interval = setInterval(async () => {
@@ -525,11 +560,13 @@ export default function Home() {
       ================================================= */}
 
       {loading ? (
-        <FadeInUp delay={100} style={styles.loadingContainer}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color="#FFFFFF" />
 
-          <Text style={styles.loadingText}>Preparando sua experiência...</Text>
-        </FadeInUp>
+          <Text style={styles.loadingTitle}>Preparando sua experiência</Text>
+
+          <Text style={styles.loadingText}>{loadingMessage}</Text>
+        </View>
       ) : (
         <FlatList
           data={[]}
@@ -951,20 +988,26 @@ const styles = StyleSheet.create({
 
   loadingContainer: {
     flex: 1,
-
     alignItems: "center",
-
     justifyContent: "center",
+    paddingHorizontal: 32,
+  },
+
+  loadingTitle: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 22,
   },
 
   loadingText: {
-    color: "#666",
-
-    fontSize: 12,
-
-    marginTop: 14,
-
-    letterSpacing: 0.3,
+    color: "#8E8E8E",
+    fontSize: 14,
+    fontWeight: "400",
+    textAlign: "center",
+    lineHeight: 21,
+    marginTop: 8,
   },
 
   hero: {
