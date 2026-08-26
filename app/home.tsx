@@ -775,7 +775,7 @@ export default function Home() {
                   </View>
                 ) : (
                   <View style={styles.servicesGrid}>
-                    {services.slice(0, 4).map((service, index) => {
+                    {services.map((service, index) => {
                       const selected = selectedServices.some(
                         (item) => item._id === service._id,
                       );
