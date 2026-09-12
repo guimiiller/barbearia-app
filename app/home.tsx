@@ -15,6 +15,8 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import { saveFcmToken } from "../src/services/api";
+import { enablePushNotifications } from "../src/services/notifications";
 
 import {
   cancelAppointment,
@@ -133,6 +135,7 @@ export default function Home() {
   const router = useRouter();
 
   const [user, setUser] = useState<any>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const [services, setServices] = useState<any[]>([]);
 
@@ -536,6 +539,154 @@ export default function Home() {
     return "Boa noite";
   };
 
+  const syncNotifications = async () => {
+    try {
+      if (Platform.OS !== "web") {
+        return;
+      }
+
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        return;
+      }
+
+      // Se já permitiu anteriormente, não pede permissão novamente.
+      if (Notification.permission !== "granted") {
+        setNotificationsEnabled(false);
+        return;
+      }
+
+      const storedUser = await AsyncStorage.getItem("user");
+
+      if (!storedUser) {
+        return;
+      }
+
+      const parsedUser = JSON.parse(storedUser);
+      const userId = parsedUser._id || parsedUser.id;
+
+      if (!userId) {
+        return;
+      }
+
+      console.log("🔔 [CLIENTE] Sincronizando notificações automaticamente...");
+
+      const token = await enablePushNotifications();
+
+      if (!token) {
+        console.log("🔕 [CLIENTE] Não foi possível recuperar o token FCM.");
+        return;
+      }
+
+      await saveFcmToken(userId, token);
+
+      setNotificationsEnabled(true);
+
+      console.log("✅ [CLIENTE] Notificações sincronizadas automaticamente.");
+    } catch (error) {
+      console.error("❌ [CLIENTE] Erro ao sincronizar notificações:", error);
+    }
+  };
+
+  useEffect(() => {
+    void syncNotifications();
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    try {
+      console.log("🔔 [CLIENTE] Iniciando ativação das notificações...");
+
+      const storedUser = await AsyncStorage.getItem("user");
+
+      console.log("👤 [CLIENTE] Usuário salvo:", storedUser);
+
+      if (!storedUser) {
+        if (Platform.OS === "web") {
+          window.alert("Usuário não encontrado.");
+        } else {
+          Alert.alert("Erro", "Usuário não encontrado.");
+        }
+
+        return;
+      }
+
+      const parsedUser = JSON.parse(storedUser);
+
+      const userId = parsedUser._id || parsedUser.id;
+
+      console.log("🆔 [CLIENTE] User ID:", userId);
+
+      if (!userId) {
+        console.log("❌ [CLIENTE] ID do usuário não encontrado.");
+
+        if (Platform.OS === "web") {
+          window.alert("ID do usuário não encontrado.");
+        } else {
+          Alert.alert("Erro", "ID do usuário não encontrado.");
+        }
+
+        return;
+      }
+
+      console.log("🔔 [CLIENTE] Solicitando token Firebase...");
+
+      const token = await enablePushNotifications();
+
+      console.log(
+        "🔥 [CLIENTE] Token Firebase:",
+        token ? "TOKEN GERADO ✅" : "TOKEN NÃO GERADO ❌",
+      );
+
+      if (!token) {
+        if (Platform.OS === "web") {
+          window.alert("Não foi possível gerar o token de notificações.");
+        } else {
+          Alert.alert(
+            "Notificações",
+            "Não foi possível gerar o token de notificações.",
+          );
+        }
+
+        return;
+      }
+
+      console.log("📡 [CLIENTE] Enviando token para o backend...");
+
+      const response = await saveFcmToken(userId, token);
+
+      console.log("✅ [CLIENTE] Resposta do backend:", response);
+      setNotificationsEnabled(true);
+
+      if (Platform.OS === "web") {
+        window.alert(
+          "Notificações ativadas! Você receberá avisos sobre seus agendamentos. 🔔",
+        );
+      } else {
+        Alert.alert(
+          "Notificações ativadas 🔔",
+          "Você receberá avisos sobre seus agendamentos.",
+        );
+      }
+    } catch (error: any) {
+      console.error("❌ [CLIENTE] ERRO AO ATIVAR NOTIFICAÇÕES:", error);
+
+      console.error("❌ [CLIENTE] RESPOSTA BACKEND:", error?.response?.data);
+
+      console.error("❌ [CLIENTE] STATUS:", error?.response?.status);
+
+      if (Platform.OS === "web") {
+        window.alert(
+          error?.response?.data?.error ||
+            "Não foi possível ativar as notificações.",
+        );
+      } else {
+        Alert.alert(
+          "Erro",
+          error?.response?.data?.error ||
+            "Não foi possível ativar as notificações.",
+        );
+      }
+    }
+  };
   return (
     <View style={styles.container}>
       <FadeInUp delay={0} distance={15} style={styles.header}>
@@ -616,6 +767,38 @@ export default function Home() {
                   <Text style={styles.primaryArrow}>→</Text>
                 </ScaleButton>
               </FadeInUp>
+
+              {/* =========================================
+    ATIVAR NOTIFICAÇÕES
+========================================= */}
+
+              {!notificationsEnabled && (
+                <FadeInUp delay={140} distance={20}>
+                  <ScaleButton
+                    style={{
+                      backgroundColor: "#1A1A1A",
+                      paddingVertical: 16,
+                      paddingHorizontal: 20,
+                      borderRadius: 14,
+                      marginTop: 16,
+                      marginBottom: 10,
+                      alignItems: "center",
+                      justifyContent: "center",
+                    }}
+                    onPress={handleEnableNotifications}
+                  >
+                    <Text
+                      style={{
+                        color: "#FFFFFF",
+                        fontSize: 15,
+                        fontWeight: "700",
+                      }}
+                    >
+                      Ativar notificações 🔔
+                    </Text>
+                  </ScaleButton>
+                </FadeInUp>
+              )}
 
               {/* =========================================
                   PRÓXIMO AGENDAMENTO

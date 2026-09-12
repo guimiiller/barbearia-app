@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { ReactNode, useCallback, useEffect, useRef, useState } from "react";
+import { enablePushNotifications } from "../src/services/notifications";
 
 import {
   ActivityIndicator,
@@ -20,6 +21,7 @@ import {
   cancelAppointment,
   concludeAppointment,
   getBarberAppointments,
+  saveFcmToken,
 } from "../src/services/api";
 
 const AnimatedTouchableOpacity =
@@ -137,6 +139,7 @@ export default function Admin() {
   const router = useRouter();
 
   const [admin, setAdmin] = useState<any>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
   const [appointments, setAppointments] = useState<any[]>([]);
 
@@ -545,6 +548,108 @@ export default function Admin() {
     ]);
   };
 
+  const syncNotifications = async () => {
+    try {
+      if (typeof window === "undefined" || !("Notification" in window)) {
+        return;
+      }
+
+      if (Notification.permission !== "granted") {
+        setNotificationsEnabled(false);
+        return;
+      }
+
+      const storedUser = await AsyncStorage.getItem("user");
+
+      if (!storedUser) {
+        return;
+      }
+
+      const parsedAdmin = JSON.parse(storedUser);
+
+      if (parsedAdmin.role !== "admin") {
+        return;
+      }
+
+      const userId = parsedAdmin._id || parsedAdmin.id;
+
+      if (!userId) {
+        return;
+      }
+
+      console.log("🔔 [ADMIN] Sincronizando notificações automaticamente...");
+
+      const token = await enablePushNotifications();
+
+      if (!token) {
+        console.log("🔕 [ADMIN] Não foi possível recuperar o token FCM.");
+        return;
+      }
+
+      await saveFcmToken(userId, token);
+
+      setNotificationsEnabled(true);
+
+      console.log("✅ [ADMIN] Notificações sincronizadas automaticamente.");
+    } catch (error) {
+      console.error("❌ [ADMIN] Erro ao sincronizar notificações:", error);
+    }
+  };
+
+  useEffect(() => {
+    void syncNotifications();
+  }, []);
+
+  const handleEnableNotifications = async () => {
+    try {
+      if (!admin?._id && !admin?.id) {
+        console.log("❌ ID do administrador não encontrado.");
+
+        if (typeof window !== "undefined") {
+          window.alert("Não foi possível identificar sua conta.");
+        }
+
+        return;
+      }
+
+      const token = await enablePushNotifications();
+
+      if (!token) {
+        if (typeof window !== "undefined") {
+          window.alert(
+            "Não foi possível ativar as notificações. Verifique a permissão do navegador.",
+          );
+        }
+
+        return;
+      }
+
+      const userId = admin._id || admin.id;
+
+      console.log("🔔 Salvando token FCM para usuário:", userId);
+
+      const response = await saveFcmToken(userId, token);
+
+      console.log("✅ Token FCM salvo no servidor:", response);
+      setNotificationsEnabled(true);
+
+      if (typeof window !== "undefined") {
+        window.alert("Notificações ativadas com sucesso! 🔔");
+      }
+    } catch (error: any) {
+      console.error(
+        "❌ Erro ao salvar token FCM:",
+        error?.response?.data || error,
+      );
+
+      if (typeof window !== "undefined") {
+        window.alert(
+          "A permissão foi concedida, mas não foi possível salvar as notificações.",
+        );
+      }
+    }
+  };
+
   return (
     <View style={styles.container}>
       {/* HEADER */}
@@ -601,6 +706,29 @@ export default function Admin() {
           </ScaleButton>
         </FadeInUp>
       </FadeInUp>
+
+      {!notificationsEnabled && (
+        <TouchableOpacity
+          onPress={handleEnableNotifications}
+          style={{
+            backgroundColor: "#FFFFFF",
+            padding: 14,
+            marginHorizontal: 20,
+            marginTop: 15,
+            borderRadius: 10,
+            alignItems: "center",
+          }}
+        >
+          <Text
+            style={{
+              color: "#000000",
+              fontWeight: "700",
+            }}
+          >
+            🔔 Ativar notificações
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* RESUMO */}
 

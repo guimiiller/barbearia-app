@@ -1,7 +1,7 @@
 import axios from "axios";
 
 export const api = axios.create({
-  baseURL: "https://barao-barbearia-api.onrender.com",
+  baseURL: "http://localhost:3000",
 });
 
 export type AppointmentData = {
@@ -25,6 +25,14 @@ export const registerUser = async (data: {
   phone: string;
 }) => {
   const response = await api.post("/auth/register", data);
+
+  return response.data;
+};
+
+export const saveFcmToken = async (userId: string, token: string) => {
+  const response = await api.post(`/users/${userId}/fcm-token`, {
+    token,
+  });
 
   return response.data;
 };

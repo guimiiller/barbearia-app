@@ -36,6 +36,12 @@ const userSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Dispositivos que podem receber notificações Push
+    fcmTokens: {
+      type: [String],
+      default: [],
+    },
+
     cancelCount: {
       type: Number,
       default: 0,

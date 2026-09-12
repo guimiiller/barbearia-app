@@ -1,9 +1,14 @@
 import express from "express";
+import { firebaseMessaging } from "../config/firebaseAdmin.js";
 import Appointment from "../models/Appointment.js";
 import Schedule from "../models/Schedule.js";
 import User from "../models/User.js";
 
 const router = express.Router();
+
+// =====================================================
+// BUSCAR AGENDAMENTOS DO BARBEIRO
+// =====================================================
 
 router.get("/barber/:barberId", async (req, res) => {
   try {
@@ -37,24 +42,15 @@ router.get("/barber/:barberId", async (req, res) => {
   }
 });
 
+// =====================================================
+// BUSCAR AGENDAMENTOS DO CLIENTE
+// =====================================================
+
 router.get("/:userId", async (req, res) => {
   try {
-    console.log("👤 USER ID:", req.params.userId);
-
     const data = await Appointment.find({
       userId: req.params.userId,
     });
-
-    console.log(
-      "📋 AGENDAMENTOS ENCONTRADOS:",
-      data.map((appointment) => ({
-        id: appointment._id,
-        userId: appointment.userId,
-        status: appointment.status,
-        date: appointment.date,
-        time: appointment.time,
-      })),
-    );
 
     res.json(data);
   } catch (error) {
@@ -65,6 +61,10 @@ router.get("/:userId", async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// CRIAR AGENDAMENTO
+// =====================================================
 
 router.post("/", async (req, res) => {
   try {
@@ -83,6 +83,10 @@ router.post("/", async (req, res) => {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
+    // =====================================================
+    // RESETAR CONTADOR SE MUDOU O MÊS
+    // =====================================================
+
     if (
       user.cancelCountMonth !== currentMonth ||
       user.cancelCountYear !== currentYear
@@ -95,6 +99,10 @@ router.post("/", async (req, res) => {
 
       console.log("🔄 CONTADOR DE CANCELAMENTOS RESETADO:", user._id);
     }
+
+    // =====================================================
+    // VERIFICAR BLOQUEIO DO CLIENTE
+    // =====================================================
 
     if (user.blockedUntil && user.blockedUntil > now) {
       const remainingMs = user.blockedUntil.getTime() - now.getTime();
@@ -110,6 +118,10 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // =====================================================
+    // REMOVER BLOQUEIO EXPIRADO
+    // =====================================================
+
     if (user.blockedUntil && user.blockedUntil <= now) {
       user.blockedUntil = null;
 
@@ -118,9 +130,15 @@ router.post("/", async (req, res) => {
       console.log("🔓 BLOQUEIO DE 24 HORAS EXPIRADO:", user._id);
     }
 
+    // =====================================================
+    // CLIENTE SÓ PODE TER 1 AGENDAMENTO ATIVO
+    // =====================================================
+
     const userAppointments = await Appointment.countDocuments({
       userId,
-      status: { $ne: "cancelado" },
+      status: {
+        $ne: "cancelado",
+      },
     });
 
     if (userAppointments >= 1) {
@@ -129,11 +147,17 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // =====================================================
+    // VERIFICAR SE O HORÁRIO JÁ ESTÁ OCUPADO
+    // =====================================================
+
     const exists = await Appointment.findOne({
       date,
       time,
       barberId,
-      status: { $ne: "cancelado" },
+      status: {
+        $ne: "cancelado",
+      },
     });
 
     if (exists) {
@@ -141,6 +165,10 @@ router.post("/", async (req, res) => {
         error: "Horário já ocupado.",
       });
     }
+
+    // =====================================================
+    // CRIAR AGENDAMENTO
+    // =====================================================
 
     const appointment = await Appointment.create({
       userId,
@@ -153,6 +181,58 @@ router.post("/", async (req, res) => {
 
     console.log("✅ AGENDAMENTO CRIADO:", appointment._id);
 
+    // =====================================================
+    // 🔔 NOTIFICAR BARBEIRO SOBRE NOVO AGENDAMENTO
+    // =====================================================
+
+    try {
+      const barber = await User.findOne({
+        role: "admin",
+        barberId: Number(barberId),
+      });
+
+      if (barber?.fcmTokens?.length) {
+        const serviceNames = services
+          .map((service) => service.name)
+          .filter(Boolean)
+          .join(", ");
+
+        const message = {
+          notification: {
+            title: "Novo agendamento ✂️",
+            body: `${user.name} agendou ${
+              serviceNames || "um serviço"
+            } para ${date} às ${time}.`,
+          },
+
+          webpush: {
+            notification: {
+              icon: "/icon-192.png",
+              badge: "/icon-192.png",
+            },
+          },
+
+          tokens: barber.fcmTokens,
+        };
+
+        const notificationResult =
+          await firebaseMessaging.sendEachForMulticast(message);
+
+        console.log(
+          `🔔 NOTIFICAÇÃO NOVO AGENDAMENTO: ${notificationResult.successCount} enviada(s), ${notificationResult.failureCount} falha(s)`,
+        );
+      } else {
+        console.log(
+          "🔕 Barbeiro não possui dispositivo registrado para notificações.",
+        );
+      }
+    } catch (notificationError) {
+      console.error(
+        "⚠️ Agendamento criado, mas houve erro ao enviar a notificação:",
+        notificationError,
+      );
+    }
+
     res.json(appointment);
   } catch (err) {
     console.log("❌ ERRO AO CRIAR:", err);
@@ -162,6 +242,10 @@ router.post("/", async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// LISTAR TODOS OS AGENDAMENTOS
+// =====================================================
 
 router.get("/", async (req, res) => {
   try {
@@ -176,6 +260,10 @@ router.get("/", async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// DELETAR AGENDAMENTO
+// =====================================================
 
 router.delete("/:id", async (req, res) => {
   try {
@@ -200,6 +288,10 @@ router.delete("/:id", async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// ATUALIZAR AGENDAMENTO
+// =====================================================
 
 router.put("/:id", async (req, res) => {
   try {
@@ -226,6 +318,10 @@ router.put("/:id", async (req, res) => {
     });
   }
 });
+
+// =====================================================
+// CANCELAR AGENDAMENTO
+// =====================================================
 
 router.patch("/:id/cancel", async (req, res) => {
   try {
@@ -258,6 +354,10 @@ router.patch("/:id/cancel", async (req, res) => {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
 
+    // =====================================================
+    // RESETAR CONTADOR NO NOVO MÊS
+    // =====================================================
+
     if (
       user.cancelCountMonth !== currentMonth ||
       user.cancelCountYear !== currentYear
@@ -283,7 +383,12 @@ router.patch("/:id/cancel", async (req, res) => {
     await appointment.save();
 
     console.log("❌ AGENDAMENTO CANCELADO:", appointment._id);
+
     console.log("👤 CANCELADO POR:", appointment.cancelledBy);
+
+    // =====================================================
+    // CANCELAMENTO FEITO PELO CLIENTE
+    // =====================================================
 
     if (appointment.cancelledBy === "client") {
       user.cancelCount += 1;
@@ -295,14 +400,74 @@ router.patch("/:id/cancel", async (req, res) => {
 
       let blockedUntil = null;
 
+      // =====================================================
+      // 🔔 NOTIFICAR BARBEIRO SOBRE CANCELAMENTO
+      // =====================================================
+
+      try {
+        const barber = await User.findOne({
+          role: "admin",
+          barberId: Number(appointment.barberId),
+        });
+
+        if (barber?.fcmTokens?.length) {
+          const serviceNames =
+            appointment.services
+              ?.map((service) => service.name)
+              .filter(Boolean)
+              .join(", ") || "";
+
+          const message = {
+            notification: {
+              title: "Agendamento cancelado ❌",
+              body: `${user.name} cancelou ${
+                serviceNames || "o agendamento"
+              } de ${appointment.date} às ${appointment.time}.`,
+            },
+
+            webpush: {
+              notification: {
+                icon: "/icon-192.png",
+                badge: "/icon-192.png",
+              },
+            },
+
+            tokens: barber.fcmTokens,
+          };
+
+          const notificationResult =
+            await firebaseMessaging.sendEachForMulticast(message);
+
+          console.log(
+            `🔔 NOTIFICAÇÃO CANCELAMENTO CLIENTE: ${notificationResult.successCount} enviada(s), ${notificationResult.failureCount} falha(s)`,
+          );
+        } else {
+          console.log(
+            "🔕 Barbeiro não possui dispositivo registrado para notificações.",
+          );
+        }
+      } catch (notificationError) {
+        console.error(
+          "⚠️ Agendamento cancelado, mas houve erro ao notificar o barbeiro:",
+          notificationError,
+        );
+      }
+
+      // =====================================================
+      // BLOQUEAR APÓS 3 CANCELAMENTOS
+      // =====================================================
+
       if (user.cancelCount >= 3) {
         blockedUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
         user.blockedUntil = blockedUntil;
 
         console.log("🚨 LIMITE DE CANCELAMENTOS ATINGIDO");
+
         console.log("🔒 CLIENTE BLOQUEADO POR 24 HORAS");
+
         console.log("👤 CLIENTE:", user._id);
+
         console.log("🔒 BLOQUEADO ATÉ:", blockedUntil);
       }
 
@@ -348,6 +513,61 @@ router.patch("/:id/cancel", async (req, res) => {
       });
     }
 
+    // =====================================================
+    // CANCELAMENTO FEITO PELO ADMIN
+    // =====================================================
+
+    // =====================================================
+    // 🔔 NOTIFICAR CLIENTE SOBRE CANCELAMENTO DO ADMIN
+    // =====================================================
+
+    try {
+      if (user?.fcmTokens?.length) {
+        const serviceNames =
+          appointment.services
+            ?.map((service) => service.name)
+            .filter(Boolean)
+            .join(", ") || "";
+
+        const message = {
+          notification: {
+            title: "Agendamento cancelado ❌",
+            body: `Seu agendamento${
+              serviceNames ? ` de ${serviceNames}` : ""
+            } do dia ${appointment.date} às ${
+              appointment.time
+            } foi cancelado pelo Barão.`,
+          },
+
+          webpush: {
+            notification: {
+              icon: "/icon-192.png",
+              badge: "/icon-192.png",
+            },
+          },
+
+          tokens: user.fcmTokens,
+        };
+
+        const notificationResult =
+          await firebaseMessaging.sendEachForMulticast(message);
+
+        console.log(
+          `🔔 NOTIFICAÇÃO CANCELAMENTO ADMIN → CLIENTE: ${notificationResult.successCount} enviada(s), ${notificationResult.failureCount} falha(s)`,
+        );
+      } else {
+        console.log(
+          "🔕 Cliente não possui dispositivo registrado para notificações.",
+        );
+      }
+    } catch (notificationError) {
+      // O CANCELAMENTO NÃO DEVE FALHAR SE O PUSH FALHAR
+      console.error(
+        "⚠️ Agendamento cancelado pelo admin, mas houve erro ao notificar o cliente:",
+        notificationError,
+      );
+    }
+
     return res.json({
       message: "Agendamento cancelado pelo administrador.",
 
@@ -374,6 +594,10 @@ router.patch("/:id/cancel", async (req, res) => {
   }
 });
 
+// =====================================================
+// CONCLUIR AGENDAMENTO
+// =====================================================
+
 router.delete("/concluir/:id", async (req, res) => {
   try {
     const appointment = await Appointment.findById(req.params.id);
@@ -391,7 +615,6 @@ router.delete("/concluir/:id", async (req, res) => {
       time: appointment.time,
     });
 
-    // Remove o horário da agenda disponível do barbeiro
     const scheduleResult = await Schedule.updateOne(
       {
         barberId: Number(appointment.barberId),
@@ -408,15 +631,17 @@ router.delete("/concluir/:id", async (req, res) => {
 
     console.log("🗑️ RESULTADO REMOÇÃO DO HORÁRIO:", scheduleResult);
 
-    // Agora remove o agendamento
     await Appointment.findByIdAndDelete(req.params.id);
 
     console.log("✅ ATENDIMENTO CONCLUÍDO:", appointment._id);
+
     console.log("🕒 HORÁRIO REMOVIDO:", appointment.time);
 
     return res.json({
       success: true,
+
       message: "Agendamento concluído e horário removido.",
+
       removedSlot: {
         barberId: appointment.barberId,
         date: appointment.date,
