@@ -4,11 +4,8 @@ import cors from "cors";
 import express from "express";
 import mongoose from "mongoose";
 
-import "./config/firebaseAdmin.js";
-
 import appointmentRoutes from "./routes/appointment.js";
 import authRoutes from "./routes/auth.js";
-import notificationRoutes from "./routes/notifications.js";
 import scheduleRoutes from "./routes/schedule.js";
 import serviceRoutes from "./routes/service.js";
 import userRoutes from "./routes/users.js";
@@ -42,7 +39,6 @@ app.use("/services", serviceRoutes);
 app.use("/appointments", appointmentRoutes);
 app.use("/users", userRoutes);
 app.use("/schedule", scheduleRoutes);
-app.use("/notifications", notificationRoutes);
 
 const PORT = process.env.PORT || 3000;
 
