@@ -76,11 +76,6 @@ export const enablePushNotifications = async () => {
       return null;
     }
 
-    console.log("======================================");
-    console.log("🔔 TOKEN FCM GERADO:");
-    console.log(token);
-    console.log("======================================");
-
     return token;
   } catch (error) {
     console.error("❌ Erro ao ativar notificações:", error);
