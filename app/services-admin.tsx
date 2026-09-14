@@ -207,8 +207,6 @@ export default function ServicesAdmin() {
 
   return (
     <View style={styles.container}>
-      {/* HEADER */}
-
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>ADMINISTRAÇÃO</Text>
@@ -228,8 +226,6 @@ export default function ServicesAdmin() {
       </View>
 
       <View style={styles.divider} />
-
-      {/* LISTA */}
 
       <FlatList
         data={services}

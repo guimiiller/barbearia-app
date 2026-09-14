@@ -16,21 +16,9 @@ export default function Landing() {
         resizeMode="cover"
       />
 
-      {/* =====================================
-          OVERLAY
-      ===================================== */}
-
       <View style={styles.overlay} />
 
-      {/* =====================================
-          CONTEÚDO
-      ===================================== */}
-
       <View style={styles.content}>
-        {/* =====================================
-            MARCA
-        ===================================== */}
-
         <View style={styles.brand}>
           <Text style={styles.brandTitle}>BARÃO</Text>
 
@@ -38,10 +26,6 @@ export default function Landing() {
 
           <Text style={styles.brandSubtitle}>BARBEARIA</Text>
         </View>
-
-        {/* =====================================
-            TEXTO PRINCIPAL
-        ===================================== */}
 
         <View style={styles.heroText}>
           <View>
@@ -54,10 +38,6 @@ export default function Landing() {
             Agende seu horário e viva a experiência Barão.
           </Text>
         </View>
-
-        {/* =====================================
-            BOTÕES
-        ===================================== */}
 
         <View style={styles.buttons}>
           <TouchableOpacity

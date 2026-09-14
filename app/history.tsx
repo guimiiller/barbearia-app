@@ -244,7 +244,7 @@ export default function History() {
 
           <TouchableOpacity
             style={styles.emptyButton}
-            onPress={() => router.push("/schedule")}
+            onPress={() => router.push("/home")}
           >
             <Text style={styles.emptyButtonText}>Agendar horário</Text>
 
