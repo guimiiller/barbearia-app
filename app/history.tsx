@@ -218,8 +218,6 @@ export default function History() {
         </View>
       </View>
 
-      {/* DESCRIÇÃO */}
-
       <Text style={styles.description}>
         Confira seus agendamentos e acompanhe seus atendimentos.
       </Text>
