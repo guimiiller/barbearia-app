@@ -688,13 +688,7 @@ export default function Login() {
         {/* SENHA */}
 
         <View style={styles.field}>
-          <View style={styles.passwordHeader}>
-            <Text style={styles.label}>SENHA</Text>
-
-            <TouchableOpacity activeOpacity={0.7} onPress={openForgotPassword}>
-              <Text style={styles.forgotPassword}>Esqueci minha senha</Text>
-            </TouchableOpacity>
-          </View>
+          <Text style={styles.label}>SENHA</Text>
 
           <View
             style={[
