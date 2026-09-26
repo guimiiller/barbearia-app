@@ -42,7 +42,7 @@ export default function Schedule() {
 
     {
       id: 3,
-      name: "Mario",
+      name: "Junior",
     },
   ];
 
